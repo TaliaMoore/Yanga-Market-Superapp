@@ -1,0 +1,6 @@
+{
+  "name": "Yanga Market",
+  "description": "On-demand superapp ecosystem for food, fruits, events, retail, hospitals, vibes community, and a secure in-app wallet.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

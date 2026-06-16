@@ -1,0 +1,44 @@
+# Android & Gradle Build Artifacts
+.gradle
+/build
+build/
+*.apk
+*.aar
+*.aab
+/captures
+.externalNativeBuild
+.cxx
+
+# IDEs and Editors
+*.iml
+.kotlin
+/.idea/caches
+/.idea/libraries
+/.idea/modules.xml
+/.idea/workspace.xml
+/.idea/navEditor.xml
+/.idea/assetWizardSettings.xml
+*.ipr
+*.iws
+.idea/
+
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.eslintcache
+
+# System & OS Specific (including temporary files)
+.DS_Store
+Thumbs.db
+*.tmp
+*.temp
+*.swp
+*~
+
+# Local Configurations & Secrets
+local.properties
+/local.properties
+.env
+debug.keystore
