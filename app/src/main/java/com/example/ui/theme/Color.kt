@@ -5,6 +5,8 @@ import androidx.compose.ui.graphics.Color
 // Light Theme Palette - Natural Tones Theme (Warm organic Ivory, soft leafy Yellow, and rich Purple accents)
 val PrimaryPurple = Color(0xFF7E22CE)      // Rich brand violet purple (Tailwind purple-700)
 val SecondaryYellow = Color(0xFFFEF08A)    // Gentle pastel gold/yellow (Tailwind yellow-200)
+val BrandOrange = Color(0xFFFF6D00)        // Vibrant Chowdeck appetizing orange accent for hot food & lightning delivery
+val BrandGreen = Color(0xFF00C853)         // Beautiful leafy organic fresh green representing natural fruits & secure wallet credits
 val WarmCardWhite = Color(0xFFFFFFFF)     // Crisp white for card elevations
 val PlayfulBg = Color(0xFFFFFEF7)          // Divine cozy Warm Ivory/Cream background (#FFFEF7)
 val PlayfulCream = Color(0xFFFEFCE8)       // Extremely soft pastel yellow cream (Tailwind yellow-50)
@@ -12,6 +14,7 @@ val CharcoalBlack = Color(0xFF3B0764)      // Rich deep organic plum/purple (Tai
 val BoldGold = Color(0xFFFDE047)           // Radiant accent gold (Tailwind yellow-300) for highlights
 val HeartRed = Color(0xFFEF4444)           // Bright coral/red for vibe checks & reactions
 val InfoBlue = Color(0xFF3B82F6)           // Clean medical tag blue
+val PaleYellow = Color(0xFFFEF9C3)         // Super pale pastel yellow for container backdrops (Tailwind yellow-100)
 
 // Dark Theme Palette - Deep Forest and Natural Tones
 val CosmicPurpleBg = Color(0xFF2E1065)     // Rich deep royal plum-velvet background (absolutely no black)

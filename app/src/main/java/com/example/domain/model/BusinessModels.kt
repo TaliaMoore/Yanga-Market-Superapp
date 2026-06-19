@@ -191,7 +191,7 @@ class Restaurant(
 }
 
 // --- 4. EVENTS (MODELED AFTER CARLY'S CATERING CASE STUDY) ---
-class Event(
+open class Event(
     val id: String = UUID.randomUUID().toString(),
     val title: String, // serves as name
     val host: String,
@@ -201,24 +201,72 @@ class Event(
     val rsvpCount: Int = 0,
     val isRsvped: Boolean = false,
     price: Double = -1.0, // normal parameter to allow legacy initialization
-    initialGuests: Int = 0,
-    initialEventNumber: String? = null
+    initialGuests: Int = -1,
+    initialEventNumber: String? = null,
+    initialContactPhone: String = ""
 ) : SuperAppEntity(id, title, venue) {
 
+    // Default constructor (sets event number to "A000" and guests to 0)
+    constructor() : this(
+        id = UUID.randomUUID().toString(),
+        title = "Default Event",
+        host = "Default Host",
+        date = "2026-01-01",
+        time = "12:00",
+        venue = "Default Venue",
+        rsvpCount = 0,
+        isRsvped = false,
+        price = -1.0,
+        initialGuests = 0,
+        initialEventNumber = "A000",
+        initialContactPhone = ""
+    )
+
+    // Designated constructor (requires specific event number and guest count)
+    constructor(eventNumber: String, guestCount: Int) : this(
+        id = UUID.randomUUID().toString(),
+        title = "Designated Event",
+        host = "Default Host",
+        date = "2026-01-01",
+        time = "12:00",
+        venue = "Default Venue",
+        rsvpCount = 0,
+        isRsvped = false,
+        price = -1.0,
+        initialGuests = guestCount,
+        initialEventNumber = eventNumber,
+        initialContactPhone = ""
+    )
+
     companion object {
-        const val PRICE_PER_GUEST = 35.0 // standard rate in Carly's Catering case study guidelines ($35/₦35 per guest)
+        const val PRICE_PER_GUEST = 35.0 // legacy default
+        const val PRICE_PER_GUEST_STANDARD = 35.0 // standard rate in Carly's Catering case study guidelines ($35/₦35 per guest)
+        const val PRICE_PER_GUEST_LARGE = 32.0 // large event discounted rate ($32/₦32 per guest)
         const val CUTOFF_LARGE_EVENT = 50 // cutoff for large vs small events
     }
 
-    // Private encapsulated backing fields for clean Object-Oriented design
-    private var eventNumber: String = initialEventNumber ?: ("E" + id.take(4).uppercase())
-    private var numberOfGuests: Int = if (initialGuests > 0) initialGuests else (if (rsvpCount > 0) rsvpCount else 15)
-    private var calculatedPrice: Double = if (price >= 0.0) {
+    // Private encapsulated backing fields for clean Object-Oriented design as requested
+    // eventNumber is a String forced or normalized to exactly 4 characters
+    private var eventNumber: String = if (initialEventNumber != null) {
+        if (initialEventNumber.length == 4) initialEventNumber.uppercase() else initialEventNumber.padEnd(4, '0').take(4).uppercase()
+    } else {
+        ("E" + id.take(3).uppercase())
+    }
+    
+    // numberOfGuests is an Integer - supports 0 guests correctly when explicitly set
+    private var numberOfGuests: Int = if (initialGuests >= 0) initialGuests else (if (rsvpCount > 0) rsvpCount else 15)
+    
+    // totalPrice is a Double containing the total computed price
+    private var totalPrice: Double = if (price >= 0.0) {
         price
     } else {
-        // Automatically computed based on guest count & PRICE_PER_GUEST
-        numberOfGuests * PRICE_PER_GUEST
+        // Automatically computed based on guest count & PRICE_PER_GUEST rates
+        val rate = if (numberOfGuests >= CUTOFF_LARGE_EVENT) PRICE_PER_GUEST_LARGE else PRICE_PER_GUEST_STANDARD
+        numberOfGuests * rate
     }
+
+    // contactPhoneNumber holds the digits of the contact phone number
+    private var contactPhoneNumber: String = initialContactPhone.filter { it.isDigit() }
 
     // Standard properties required across app layers
     val name: String get() = title
@@ -228,11 +276,11 @@ class Event(
     fun getEventNumber(): String = eventNumber
     
     fun setEventNumber(num: String) {
-        // Normalizing event number formatting
+        // Normalizing event number formatting to be exactly a four-character String
         if (num.length >= 4) {
-            this.eventNumber = num.uppercase()
+            this.eventNumber = num.take(4).uppercase()
         } else {
-            this.eventNumber = num
+            this.eventNumber = num.padEnd(4, '0').uppercase()
         }
     }
 
@@ -241,22 +289,24 @@ class Event(
     /**
      * Set guests and automatically recalulate overall event price.
      * Core price calculation logic based on guest count as required by Carly's Catering!
+     * Computes at $35 / guest normally, or $32 / guest for large events (50 or more guests).
      */
     fun setGuests(guests: Int) {
         if (guests >= 0) {
             this.numberOfGuests = guests
-            this.calculatedPrice = guests * PRICE_PER_GUEST
+            val rate = if (guests >= CUTOFF_LARGE_EVENT) PRICE_PER_GUEST_LARGE else PRICE_PER_GUEST_STANDARD
+            this.totalPrice = guests * rate
         }
     }
 
-    fun getCalculatedPrice(): Double = calculatedPrice
+    fun getCalculatedPrice(): Double = totalPrice
 
     /**
      * Set/Update calculated price through a controlled mutator method.
      */
     fun setCalculatedPrice(newPrice: Double) {
         if (newPrice >= 0.0) {
-            this.calculatedPrice = newPrice
+            this.totalPrice = newPrice
         }
     }
 
@@ -265,8 +315,100 @@ class Event(
      */
     fun isLargeEvent(): Boolean = numberOfGuests >= CUTOFF_LARGE_EVENT
 
+    /**
+     * Set the contact phone number after stripping all non-digit characters.
+     */
+    fun setContactPhoneNumber(phone: String) {
+        this.contactPhoneNumber = phone.filter { it.isDigit() }
+    }
+
+    /**
+     * Get the contact phone number formatted with parentheses and hyphens if it contains 10 digits
+     * (e.g., (920) 872-9182). Otherwise returns raw digits.
+     */
+    fun getContactPhoneNumber(): String {
+        val digits = contactPhoneNumber
+        return if (digits.length == 10) {
+            "(${digits.substring(0, 3)}) ${digits.substring(3, 6)}-${digits.substring(6, 10)}"
+        } else {
+            digits
+        }
+    }
+
     // Legacy adapter property matching 'event.price' field to keep screen bindings perfectly intact
     val price: Double get() = getCalculatedPrice()
+}
+
+// --- 4B. DINNER EVENT SUBCLASS ---
+class DinnerEvent(
+    id: String = UUID.randomUUID().toString(),
+    title: String,
+    host: String,
+    date: String,
+    time: String,
+    venue: String,
+    rsvpCount: Int = 0,
+    isRsvped: Boolean = false,
+    price: Double = -1.0,
+    initialGuests: Int = -1,
+    initialEventNumber: String? = null,
+    initialContactPhone: String = "",
+    
+    // Arrays for available choices: entrées, side dishes, and desserts
+    val entrees: Array<String> = arrayOf("Spicy Grilled Chicken", "Beef Suya Steak", "Pan-Seared Salmon", "Stuffed Goat Meat"),
+    val sideDishes: Array<String> = arrayOf("Jollof Rice", "Fried Plantain (Dodo)", "Yam Fries", "Steamed Veggies", "Moin Moin"),
+    val desserts: Array<String> = arrayOf("Puff Puff with Ice Cream", "Mango Sorbet", "Vanilla Bean Pudding", "Chocolate Fudge Cake")
+) : Event(id, title, host, date, time, venue, rsvpCount, isRsvped, price, initialGuests, initialEventNumber, initialContactPhone) {
+
+    // Selection fields for user selections
+    private var selectedEntree: String? = null
+    private var selectedSides: Array<String> = emptyArray()
+    private var selectedDessert: String? = null
+
+    // Getters for selected options
+    fun getSelectedEntree(): String? = selectedEntree
+    fun getSelectedSides(): Array<String> = selectedSides
+    fun getSelectedDessert(): String? = selectedDessert
+
+    /**
+     * Allows user to select exactly one entrée from the available list of entrées.
+     */
+    fun selectEntree(entree: String): Boolean {
+        val found = entrees.any { it.equals(entree, ignoreCase = true) }
+        if (found) {
+            this.selectedEntree = entree
+        }
+        return found
+    }
+
+    /**
+     * Allows user to select exactly two side dishes from the available side dishes list.
+     */
+    fun selectSides(sides: Array<String>): Boolean {
+        if (sides.size == 2 && sides.all { side -> sideDishes.any { it.equals(side, ignoreCase = true) } }) {
+            this.selectedSides = sides
+            return true
+        }
+        return false
+    }
+
+    /**
+     * Allows user to select exactly one dessert from the available desserts list.
+     */
+    fun selectDessert(dessert: String): Boolean {
+        val found = desserts.any { it.equals(dessert, ignoreCase = true) }
+        if (found) {
+            this.selectedDessert = dessert
+        }
+        return found
+    }
+
+    /**
+     * Verifies if the choices are fully made and valid: exactly one entrée, two sides, and one dessert.
+     */
+    fun isDinnerSelectionComplete(): Boolean {
+        return selectedEntree != null && selectedSides.size == 2 && selectedDessert != null
+    }
 }
 
 // --- 5. HOSPITALS ---
@@ -369,11 +511,63 @@ data class VibeComment(
 )
 
 // --- 7. SECURE WALLET ---
+/**
+ * CoinPurse is a fun representation of the secure wallet's balance.
+ * 100 silver pieces are equivalent to 1 gold piece.
+ */
+data class CoinPurse(
+    val goldCoins: Int,
+    val silverCoins: Int
+) {
+    fun toTotalSilverPieces(): Int {
+        return goldCoins * 100 + silverCoins
+    }
+
+    /**
+     * Converts the purse's gold and silver pieces into a single Double representation (as total silver pieces),
+     * subtracts the specified item price, and uses integer division and the modulus (%) operator
+     * to convert the remaining balance back into gold and silver integers.
+     */
+    fun performPurchase(itemPrice: Double): CoinPurse {
+        val totalValue = toTotalSilverPieces().toDouble()
+        val remainder = totalValue - itemPrice
+        require(remainder >= 0) {
+            "Insufficient funds: Wallet has ${toTotalSilverPieces()} silver pieces but payment of $itemPrice was requested."
+        }
+        // Round remaining balances to the second decimal place using '%.2f' format string
+        val roundedRemainderStr = String.format(java.util.Locale.US, "%.2f", remainder)
+        val roundedRemainder = roundedRemainderStr.toDouble()
+        val remainderInt = roundedRemainder.toInt()
+        val gold = remainderInt / 100
+        val silver = remainderInt % 100
+        return CoinPurse(gold, silver)
+    }
+
+    companion object {
+        fun fromValue(value: Double): CoinPurse {
+            val totalSilver = value.toInt()
+            val gold = totalSilver / 100
+            val silver = totalSilver % 100
+            return CoinPurse(gold, silver)
+        }
+    }
+}
+
 data class WalletState(
     val balance: Double = 5000.0, // Starting bonus!
     val walletPin: String = "1234",
     val transactions: List<WalletTransaction> = emptyList()
-)
+) {
+    val purse: CoinPurse get() = CoinPurse.fromValue(balance)
+
+    /**
+     * Simulates a purchase directly on the WalletState by calling CoinPurse.performPurchase
+     */
+    fun performPurchase(price: Double): WalletState {
+        val updatedPurse = purse.performPurchase(price)
+        return copy(balance = updatedPurse.toTotalSilverPieces().toDouble())
+    }
+}
 
 data class WalletTransaction(
     val id: String = "TXN-${UUID.randomUUID().toString().take(8).uppercase()}",
@@ -584,6 +778,22 @@ class Meal(
     val servingsCount: Int = 1,
     val description: String = ""
 ) : Product(id, name, price)
+
+// --- 13. QUOTES & LIBRARY CONTAINER TYPES ---
+data class BusinessQuote(
+    val id: String,
+    val author: String,
+    val text: String,
+    val category: String,
+    val createdAt: String = "2026-06-16T12:00:00Z"
+)
+
+data class QuotesLibraryType(
+    val quotes: List<BusinessQuote>,
+    val totalCount: Int,
+    val category: String? = null
+)
+
 
 
 

@@ -1,0 +1,295 @@
+/*
+  ==========================================================================
+  Yanga Market Superapp: Central Brand Identity & Aesthetic Stylesheet
+  ==========================================================================
+  A simple, captivating design scheme mimicking the premium, high-energy,
+  appetizing experience of Chowdeck.
+  
+  Palette Coordinates:
+  - Deep Royal Purple   (#7E22CE) -> Primary Brand Accent (Trust, Authority, Structure)
+  - Appetizing Orange   (#FF6D00) -> Food Delivery Catalyst (Warmth, Energy, Fast Action)
+  - Fresh Leaf Green    (#00C853) -> Organic Fruits, Secure Wallet Credits, & Success
+  - Pale Pastel Yellow  (#FEF08A) -> Divine soft accents & secondary selection overlays
+  - Playful Ivory/Cream (#FFFEF7) -> High-comfort, eye-safe, warm background
+  - Warm Card White     (#FFFFFF) -> High-contrast card surface containers
+  - Charcoal Plum-Black (#3B0764) -> Primary typography ink to avoid stark cold black
+*/
+
+:root {
+  /* Core Brand Colors */
+  --yanga-brand-purple: #7E22CE;
+  --yanga-brand-purple-hover: #6B21A8;
+  --yanga-brand-orange: #FF6D00;
+  --yanga-brand-green: #00C853;
+  --yanga-brand-pale-yellow: #FEF08A;
+  --yanga-brand-cream: #FEFCE8;
+  
+  /* Neutral Color Canvas */
+  --yanga-canvas-bg: #FFFEF7;
+  --yanga-card-surface: #FFFFFF;
+  --yanga-text-primary: #3B0764;
+  --yanga-text-secondary: #6B21A8;
+  --yanga-text-muted: #9333EA;
+  --yanga-border-color: #3B0764;
+
+  /* Playful Borders (Chowdeck Neobrutalism Vibes) */
+  --yanga-border-width-thick: 3px;
+  --yanga-border-width-regular: 2px;
+  --yanga-border-width-thin: 1px;
+  --yanga-border-color-thick: #3B0764;
+  
+  /* Sizing, Radii & Spacing */
+  --yanga-radius-playful: 20px;
+  --yanga-radius-standard: 14px;
+  --yanga-radius-pill: 9999px;
+  --yanga-spacing-unit: 8px;
+
+  /* Elevating Shadows (Crisp flat shadows rather than blurry gradients) */
+  --yanga-shadow-playful: 4px 4px 0px 0px #3B0764;
+  --yanga-shadow-subtle: 2px 2px 0px 0px #3E0764;
+}
+
+/* -------------------------------------------------------------------------
+   Structural Layout & Styling Tokens
+   ------------------------------------------------------------------------- */
+
+/* Main Canvas Body Backdrop */
+.yanga-app-container {
+  background-color: var(--yanga-canvas-bg);
+  color: var(--yanga-text-primary);
+  font-family: 'Space Grotesk', system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  min-height: 100vh;
+}
+
+/* Playful Neobrutalist Cards (Chowdeck Signature Look) */
+.yanga-card-playful {
+  background-color: var(--yanga-card-surface);
+  border: var(--yanga-border-width-thick) solid var(--yanga-border-color-thick);
+  border-radius: var(--yanga-radius-playful);
+  box-shadow: var(--yanga-shadow-playful);
+  transition: transform 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+  padding: 16px;
+}
+
+.yanga-card-playful:active {
+  transform: translate(2px, 2px);
+  box-shadow: 2px 2px 0px 0px var(--yanga-border-color-thick);
+}
+
+/* App Header styling */
+.yanga-header-banner {
+  background-color: var(--yanga-brand-purple);
+  border-bottom: var(--yanga-border-width-thick) solid var(--yanga-border-color-thick);
+  padding: 20px;
+  text-align: center;
+}
+
+/* Chowdeck Food & Logistics Tag */
+.yanga-tag-orange {
+  background-color: var(--yanga-brand-orange);
+  color: #FFFFFF;
+  border: var(--yanga-border-width-regular) solid var(--yanga-border-color-thick);
+  border-radius: var(--yanga-radius-pill);
+  font-weight: 800;
+  text-transform: uppercase;
+  padding: 4px 12px;
+  font-size: 0.75rem;
+}
+
+/* Fruit Harvesting & Cash Inflow Success Tag */
+.yanga-tag-green {
+  background-color: var(--yanga-brand-green);
+  color: #FFFFFF;
+  border: var(--yanga-border-width-regular) solid var(--yanga-border-color-thick);
+  border-radius: var(--yanga-radius-pill);
+  font-weight: 800;
+  text-transform: uppercase;
+  padding: 4px 12px;
+  font-size: 0.75rem;
+}
+
+/* Cozy Highlight Tag */
+.yanga-tag-pale-yellow {
+  background-color: var(--yanga-brand-pale-yellow);
+  color: var(--yanga-text-primary);
+  border: var(--yanga-border-width-regular) solid var(--yanga-border-color-thick);
+  border-radius: var(--yanga-radius-pill);
+  font-weight: 700;
+  padding: 4px 12px;
+  font-size: 0.75rem;
+}
+
+/* Rounded, high-energy Action Buttons */
+.yanga-button-primary {
+  background-color: var(--yanga-brand-purple);
+  color: #FFFFFF;
+  border: var(--yanga-border-width-regular) solid var(--yanga-border-color-thick);
+  border-radius: var(--yanga-radius-standard);
+  font-weight: 700;
+  padding: 12px 24px;
+  text-align: center;
+  box-shadow: var(--yanga-shadow-subtle);
+  cursor: pointer;
+  outline: none;
+}
+
+.yanga-button-primary:hover {
+  background-color: var(--yanga-brand-purple-hover);
+}
+
+.yanga-button-orange {
+  background-color: var(--yanga-brand-orange);
+  color: #FFFFFF;
+  border: var(--yanga-border-width-regular) solid var(--yanga-border-color-thick);
+  border-radius: var(--yanga-radius-standard);
+  font-weight: 700;
+  padding: 12px 24px;
+  text-align: center;
+}
+
+.yanga-input-playful {
+  width: 100%;
+  border: var(--yanga-border-width-regular) solid var(--yanga-border-color-thick);
+  border-radius: var(--yanga-radius-standard);
+  padding: 12px;
+  background-color: #FFFFFF;
+  color: var(--yanga-text-primary);
+  outline: none;
+  font-size: 1rem;
+}
+
+.yanga-input-playful:focus {
+  border-color: var(--yanga-brand-purple);
+  background-color: var(--yanga-brand-cream);
+}
+
+/* 
+   ==========================================================================
+   CSS Keyframe Definitions for 'resize', 'move', and 'composite' motions
+   Specifies changes in height, width, and position from a start point to an end point.
+   ==========================================================================
+*/
+
+@keyframes resize {
+  0% {
+    width: 100px;
+    height: 100px;
+    background-color: #FEF08A; /* Yanga Pale Yellow */
+  }
+  100% {
+    width: 200px;
+    height: 150px;
+    background-color: #FF6D00; /* Yanga Appetizing Orange */
+  }
+}
+
+@keyframes move {
+  0% {
+    left: 0px;
+    top: 0px;
+  }
+  100% {
+    left: 150px;
+    top: 80px;
+  }
+}
+
+@keyframes resizeAndMove {
+  0% {
+    width: 80px;
+    height: 80px;
+    left: 0px;
+    top: 0px;
+    background-color: #7E22CE; /* Yanga Primary Purple */
+  }
+  50% {
+    width: 140px;
+    height: 110px;
+    left: 80px;
+    top: -20px;
+    background-color: #FF6D00; /* Yanga Orange */
+  }
+  100% {
+    width: 200px;
+    height: 140px;
+    left: 160px;
+    top: 40px;
+    background-color: #00C853; /* Yanga Success Green */
+  }
+}
+
+/* Animation utilities for elements utilizing these keyframe templates */
+.yanga-animate-resize {
+  animation: resize 3s infinite alternate ease-in-out;
+}
+
+.yanga-animate-move {
+  position: relative;
+  animation: move 4s infinite alternate cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.yanga-animate-composite {
+  position: relative;
+  animation: resizeAndMove 5s infinite alternate ease-in-out;
+}
+
+/* 
+   ==========================================================================
+   Decorative Floating Animation using explicit animation-iteration-count: infinite
+   Ensures that interactive and decorative elements play continuously to enhance Yanga's fun vibe.
+   ==========================================================================
+*/
+
+@keyframes floatFood {
+  0% {
+    transform: translateY(0px) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-12px) rotate(6deg);
+  }
+  100% {
+    transform: translateY(0px) rotate(0deg);
+  }
+}
+
+.yanga-decorative-floating-food {
+  display: inline-block;
+  animation-name: floatFood;
+  animation-duration: 3.5s;
+  animation-iteration-count: infinite; /* plays continuously for fun aesthetic */
+  animation-timing-function: ease-in-out;
+}
+
+/* 
+   ==========================================================================
+   CSS Marquee Scrolling Animation
+   Provides continuously rolling announcements for the community sections.
+   ==========================================================================
+*/
+
+@keyframes yangaMarquee {
+  0% {
+    transform: translateX(100%);
+  }
+  100% {
+    transform: translateX(-100%);
+  }
+}
+
+.yanga-marquee-container {
+  overflow: hidden;
+  white-space: nowrap;
+  box-sizing: border-box;
+  width: 100%;
+}
+
+.yanga-marquee-content {
+  display: inline-block;
+  animation-name: yangaMarquee;
+  animation-duration: 18s;
+  animation-iteration-count: infinite;
+  animation-timing-function: linear;
+}
+
+
+

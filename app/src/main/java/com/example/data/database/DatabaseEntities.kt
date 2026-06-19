@@ -1,6 +1,8 @@
 package com.example.data.database
 
 import androidx.room.Entity
+import androidx.room.ForeignKey
+import androidx.room.Index
 import androidx.room.PrimaryKey
 import androidx.room.TypeConverter
 import com.squareup.moshi.Moshi
@@ -20,9 +22,20 @@ data class VibePostEntity(
     val commentsJson: String // Comments list serialized to JSON string
 )
 
-@Entity(tableName = "wallet_transactions")
+@Entity(
+    tableName = "wallet_transactions",
+    foreignKeys = [
+        ForeignKey(
+            entity = CustomerEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["customerId"],
+            onDelete = ForeignKey.SET_NULL
+        )
+    ]
+)
 data class WalletTransactionEntity(
     @PrimaryKey val id: String,
+    val customerId: String? = null,
     val type: String,
     val amount: Double,
     val description: String,
@@ -71,3 +84,95 @@ class DatabaseConverters {
         return adapter.toJson(list)
     }
 }
+
+// --- Customer, Product, and Manufacturer relational schema entities ---
+
+@Entity(tableName = "locales")
+data class LocaleEntity(
+    @PrimaryKey val zip: String,
+    val city: String,
+    val state: String
+)
+
+@Entity(
+    tableName = "customers",
+    foreignKeys = [
+        ForeignKey(
+            entity = LocaleEntity::class,
+            parentColumns = ["zip"],
+            childColumns = ["zip"],
+            onDelete = ForeignKey.SET_NULL
+        )
+    ],
+    indices = [
+        Index(value = ["email"], unique = true)
+    ]
+)
+data class CustomerEntity(
+    @PrimaryKey val id: String,
+    val name: String,
+    val email: String,
+    val phone: String,
+    val address: String,
+    val zip: String? = null
+)
+
+@Entity(tableName = "manufacturers")
+data class ManufacturerEntity(
+    @PrimaryKey val id: String,
+    val name: String,
+    val country: String,
+    val contactEmail: String
+)
+
+@Entity(tableName = "product_categories")
+data class ProductCategoryEntity(
+    @PrimaryKey val id: String,
+    val name: String
+)
+
+@Entity(
+    tableName = "products",
+    foreignKeys = [
+        ForeignKey(
+            entity = ManufacturerEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["manufacturerId"],
+            onDelete = ForeignKey.CASCADE
+        ),
+        ForeignKey(
+            entity = ProductCategoryEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["categoryId"],
+            onDelete = ForeignKey.CASCADE
+        )
+    ]
+)
+data class ProductEntity(
+    @PrimaryKey val id: String,
+    val name: String,
+    val price: Double, // Matches DECIMAL representation in SQLite
+    val quantity: Int,
+    val manufacturerId: String,
+    val categoryId: String
+)
+
+@Entity(
+    tableName = "shops",
+    foreignKeys = [
+        ForeignKey(
+            entity = LocaleEntity::class,
+            parentColumns = ["zip"],
+            childColumns = ["zip"],
+            onDelete = ForeignKey.CASCADE
+        )
+    ]
+)
+data class ShopEntity(
+    @PrimaryKey val id: String,
+    val name: String,
+    val specialty: String,
+    val distanceKm: Double,
+    val zip: String
+)
+

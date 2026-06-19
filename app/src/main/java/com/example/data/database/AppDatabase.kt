@@ -11,9 +11,15 @@ import androidx.room.TypeConverters
         VibePostEntity::class,
         WalletTransactionEntity::class,
         CartItemEntity::class,
-        SavedBookingEntity::class
+        SavedBookingEntity::class,
+        CustomerEntity::class,
+        ManufacturerEntity::class,
+        ProductEntity::class,
+        LocaleEntity::class,
+        ShopEntity::class,
+        ProductCategoryEntity::class
     ],
-    version = 1,
+    version = 6,
     exportSchema = false
 )
 @TypeConverters(DatabaseConverters::class)
@@ -22,6 +28,12 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun walletTransactionDao(): WalletTransactionDao
     abstract fun cartItemDao(): CartItemDao
     abstract fun savedBookingDao(): SavedBookingDao
+    abstract fun customerDao(): CustomerDao
+    abstract fun manufacturerDao(): ManufacturerDao
+    abstract fun productDao(): ProductDao
+    abstract fun localeDao(): LocaleDao
+    abstract fun shopDao(): ShopDao
+    abstract fun productCategoryDao(): ProductCategoryDao
 
     companion object {
         @Volatile
@@ -34,7 +46,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "yanga_market_database"
                 )
-                .fallbackToDestructiveMigration()
+                .fallbackToDestructiveMigration(true)
                 .build()
                 INSTANCE = instance
                 instance

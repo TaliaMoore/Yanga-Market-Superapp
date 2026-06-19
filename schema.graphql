@@ -1,0 +1,164 @@
+# GraphQL Schema for Yanga Superapp Business Entities
+
+type FoodItem {
+  id: ID!
+  name: String!
+  price: Float!
+  category: String!
+  description: String!
+  rating: Float!
+  deliveryTimeMin: Int!
+  isFruit: Boolean!
+}
+
+type RetailItem {
+  id: ID!
+  name: String!
+  price: Float!
+  category: String!
+  inStock: Boolean!
+}
+
+type RetailShop {
+  id: ID!
+  name: String!
+  specialty: String!
+  distanceKm: Float!
+  location: String!
+  items: [RetailItem!]!
+}
+
+type Restaurant {
+  id: ID!
+  name: String!
+  cuisine: String!
+  rating: Float!
+  address: String!
+  hasTableBooking: Boolean!
+  tablePrice: Float!
+  isTableReserved: Boolean!
+}
+
+type Event {
+  id: ID!
+  title: String!
+  host: String!
+  date: String!
+  time: String!
+  venue: String!
+  rsvpCount: Int!
+  isRsvped: Boolean!
+  price: Float!
+}
+
+type Hospital {
+  id: ID!
+  name: String!
+  location: String!
+  distanceKm: Float!
+  specialties: [String!]!
+  openHours: String!
+}
+
+type HospitalBooking {
+  bookingId: ID!
+  hospitalId: ID!
+  hospitalName: String!
+  selectedService: String!
+  bookDate: String!
+  bookTime: String!
+  currentStatus: String!
+}
+
+type VibePost {
+  id: ID!
+  author: String!
+  content: String!
+  vibeCount: Int!
+  isVibeChecked: Boolean!
+  timestamp: String!
+}
+
+type WalletTransaction {
+  id: ID!
+  type: String!
+  amount: Float!
+  description: String!
+  timestamp: String!
+  securityHash: String!
+}
+
+type BusinessQuote {
+  id: ID!
+  author: String!
+  text: String!
+  category: String!
+  createdAt: String!
+}
+
+type QuotesLibraryType {
+  quotes: [BusinessQuote!]!
+  totalCount: Int!
+  category: String
+}
+
+type Query {
+  # Fetch list of all foods (excluding fruits)
+  foods: [FoodItem!]!
+  
+  # Fetch all available fruits
+  fruits: [FoodItem!]!
+  
+  # Fetch all retail shops
+  shops: [RetailShop!]!
+  
+  # Fetch all upcoming events
+  events: [Event!]!
+  
+  # Fetch all hospitals / care facilities
+  hospitals: [Hospital!]!
+  
+  # Fetch all restaurants
+  restaurants: [Restaurant!]!
+  
+  # Fetch a single restaurant by ID
+  restaurant(id: ID!): Restaurant
+
+  # Fetch all loaded quotes
+  quotes: [BusinessQuote!]!
+
+  # Fetch quotes container library efficiently
+  quotesLibrary(category: String): QuotesLibraryType!
+}
+
+type Mutation {
+  # Wallet & Finance Mutations
+  fundWallet(amount: Float!): WalletResponse!
+  payWithWallet(amount: Float!, note: String!): WalletResponse!
+  
+  # Vibes & Community Mutations
+  postVibe(author: String!, content: String!): VibePost!
+  reactionVibe(id: ID!): VibePost!
+  
+  # Booking Mutations
+  bookService(title: String!, subtitle: String!, price: Float!, dateOrTime: String!, type: String!): BookingResponse!
+  deleteBooking(id: ID!): BookingDeleteResponse!
+}
+
+type WalletResponse {
+  success: Boolean!
+  balanceFunded: Float
+  paymentCharged: Float
+  note: String
+}
+
+type BookingResponse {
+  success: Boolean!
+  bookingId: ID!
+  type: String!
+}
+
+type BookingDeleteResponse {
+  success: Boolean!
+  deletedId: ID!
+}

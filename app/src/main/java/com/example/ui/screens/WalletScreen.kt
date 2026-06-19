@@ -21,6 +21,10 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.shape.CircleShape
+import com.example.data.network.OAuthStatus
+import com.example.data.network.GoogleContact
 import com.example.ui.MainViewModel
 import com.example.ui.components.*
 import com.example.ui.theme.CharcoalBlack
@@ -110,6 +114,143 @@ fun WalletScreen(
             }
         }
 
+        // --- Playful Coin Purse Coin System ---
+        item {
+            val goldCoins = balance.toInt() / 100
+            val silverCoins = balance.toInt() % 100
+            Card(
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFFFDFBF7)), // Pale yellow background
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .border(2.dp, PrimaryPurple.copy(alpha = 0.3f), RoundedCornerShape(20.dp))
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text(
+                            text = "🎒 Yanga Coin Purse System",
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = PrimaryPurple
+                        )
+                        Box(
+                            modifier = Modifier
+                                .background(Color(0xFFFEF3C7), RoundedCornerShape(6.dp))
+                                .padding(horizontal = 6.dp, vertical = 2.dp)
+                        ) {
+                            Text(
+                                text = "1 GP = 100 SP",
+                                fontSize = 9.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFFD97706)
+                            )
+                        }
+                    }
+                    
+                    Spacer(modifier = Modifier.height(12.dp))
+                    
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        // Gold Coins Box
+                        Card(
+                            shape = RoundedCornerShape(12.dp),
+                            colors = CardDefaults.cardColors(containerColor = Color(0xFFFFFBEB)),
+                            modifier = Modifier
+                                .weight(1f)
+                                .border(1.dp, Color(0xFFFCD34D), RoundedCornerShape(12.dp))
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 12.dp, horizontal = 8.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(40.dp)
+                                        .background(Color(0xFFFEF3C7), RoundedCornerShape(20.dp)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = "🪙",
+                                        fontSize = 20.sp
+                                    )
+                                }
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = "$goldCoins GP",
+                                    fontSize = 18.sp,
+                                    fontWeight = FontWeight.Black,
+                                    color = Color(0xFFB45309)
+                                )
+                                Text(
+                                    text = "Gold Pieces",
+                                    fontSize = 10.sp,
+                                    color = Color(0xFFB45309).copy(alpha = 0.7f),
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+
+                        // Silver Coins Box
+                        Card(
+                            shape = RoundedCornerShape(12.dp),
+                            colors = CardDefaults.cardColors(containerColor = Color(0xFFF9FAFB)),
+                            modifier = Modifier
+                                .weight(1f)
+                                .border(1.dp, Color(0xFFE5E7EB), RoundedCornerShape(12.dp))
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 12.dp, horizontal = 8.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(40.dp)
+                                        .background(Color(0xFFF3F4F6), RoundedCornerShape(20.dp)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = "🪙",
+                                        fontSize = 20.sp,
+                                        color = Color.Gray
+                                    )
+                                }
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = "$silverCoins SP",
+                                    fontSize = 18.sp,
+                                    fontWeight = FontWeight.Black,
+                                    color = CharcoalBlack
+                                )
+                                Text(
+                                    text = "Silver Pieces",
+                                    fontSize = 10.sp,
+                                    color = CharcoalBlack.copy(alpha = 0.6f),
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+                    }
+                    
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Text(
+                        text = "Every transaction converts seamlessly: your balance of ₦${String.format("%,.2f", balance)} is equivalent to $goldCoins Gold and $silverCoins Silver coins.",
+                        fontSize = 10.sp,
+                        color = CharcoalBlack.copy(alpha = 0.6f),
+                        lineHeight = 14.sp
+                    )
+                }
+            }
+        }
+
         // --- Fast Card Funding Area ---
         item {
             YangaPlayfulCard(
@@ -184,6 +325,11 @@ fun WalletScreen(
             }
         }
 
+        // --- Quick Google Contact Transfer Area ---
+        item {
+            GoogleContactsTransferSection(viewModel = viewModel, balance = balance)
+        }
+
         // --- Ledger Audit Security toggle info notice ---
         if (securityAuditsEnabled) {
             item {
@@ -253,7 +399,7 @@ fun WalletScreen(
                 }
             }
         } else {
-            items(transactions) { tx ->
+            items(transactions, key = { it.id }) { tx ->
                 TransactionRow(tx = tx, showAuditDetails = securityAuditsEnabled)
             }
         }
@@ -307,12 +453,30 @@ fun TransactionRow(
                             color = CharcoalBlack,
                             maxLines = 1
                         )
-                        Text(
-                            text = formattedDate,
-                            fontSize = 10.sp,
-                            color = CharcoalBlack.copy(alpha = 0.5f),
-                            fontWeight = FontWeight.Medium
-                        )
+                        val txGold = tx.amount.toInt() / 100
+                        val txSilver = tx.amount.toInt() % 100
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Text(
+                                text = "🪙 $txGold GP, $txSilver SP",
+                                fontSize = 11.sp,
+                                color = Color(0xFFD97706),
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = "•",
+                                fontSize = 10.sp,
+                                color = CharcoalBlack.copy(alpha = 0.3f)
+                            )
+                            Text(
+                                text = formattedDate,
+                                fontSize = 10.sp,
+                                color = CharcoalBlack.copy(alpha = 0.5f),
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
                     }
                 }
                 Text(
@@ -349,3 +513,190 @@ fun TransactionRow(
         }
     }
 }
+
+@Composable
+fun GoogleContactsTransferSection(
+    viewModel: MainViewModel,
+    balance: Double,
+    modifier: Modifier = Modifier
+) {
+    val oauthState by viewModel.oauthStatus.collectAsState()
+    val syncedContacts by viewModel.oauthSynchronizedContacts.collectAsState()
+
+    if (oauthState == OAuthStatus.AUTHORIZED && syncedContacts.isNotEmpty()) {
+        Card(
+            colors = CardDefaults.cardColors(containerColor = Color.White),
+            shape = RoundedCornerShape(16.dp),
+            modifier = modifier
+                .fillMaxWidth()
+                .border(2.dp, PrimaryPurple, RoundedCornerShape(16.dp))
+                .testTag("google_contacts_transfer_card")
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(24.dp)
+                            .background(Color(0xFF4285F4), CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "G",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Black,
+                            color = Color.White
+                        )
+                    }
+                    Text(
+                        text = "Direct Google Contacts Pay ⚡🔑",
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = CharcoalBlack
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(6.dp))
+                Text(
+                    text = "Transfer to verified Google contacts securely. Handshake is executed on oauth2 tokens.",
+                    fontSize = 11.sp,
+                    color = CharcoalBlack.copy(alpha = 0.6f)
+                )
+
+                Spacer(modifier = Modifier.height(14.dp))
+
+                var selectedContactForTransfer by remember { mutableStateOf<GoogleContact?>(null) }
+                var transferAmountStr by remember { mutableStateOf("") }
+
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    syncedContacts.forEach { contact ->
+                        val isSelected = selectedContactForTransfer?.id == contact.id
+                        Box(
+                            modifier = Modifier
+                                .background(
+                                    if (isSelected) PrimaryPurple.copy(alpha = 0.15f) else Color(0xFFF9FAFB),
+                                    RoundedCornerShape(12.dp)
+                                )
+                                .border(
+                                    width = if (isSelected) 2.dp else 1.dp,
+                                    color = if (isSelected) PrimaryPurple else Color(0xFFE5E7EB),
+                                    shape = RoundedCornerShape(12.dp)
+                                )
+                                .clickable {
+                                    selectedContactForTransfer = if (isSelected) null else contact
+                                }
+                                .padding(8.dp)
+                                .weight(1f),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(24.dp)
+                                        .background(Color(contact.profileColor), CircleShape),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = contact.name.take(1).uppercase(),
+                                        color = Color.White,
+                                        fontSize = 8.sp,
+                                        fontWeight = FontWeight.Black
+                                    )
+                                }
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = contact.name.split(" ").firstOrNull() ?: contact.name,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = CharcoalBlack,
+                                    maxLines = 1
+                                )
+                            }
+                        }
+                    }
+                }
+
+                selectedContactForTransfer?.let { contact ->
+                    Spacer(modifier = Modifier.height(14.dp))
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(Color(0xFFF3F4F6), RoundedCornerShape(10.dp))
+                            .padding(8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            text = "Recipient: ${contact.name} (${contact.phone})",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = PrimaryPurple
+                        )
+                        Text(
+                            text = "Selected ✓",
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF16A34A)
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        OutlinedTextField(
+                            value = transferAmountStr,
+                            onValueChange = { transferAmountStr = it },
+                            label = { Text("Amount to Transfer (₦)") },
+                            placeholder = { Text("e.g. 5000") },
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = PrimaryPurple,
+                                focusedLabelColor = PrimaryPurple
+                            ),
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            shape = RoundedCornerShape(10.dp),
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(56.dp)
+                                .testTag("transfer_amount_input")
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Button(
+                            onClick = {
+                                val amt = transferAmountStr.toDoubleOrNull() ?: 0.0
+                                if (amt <= 0.0) {
+                                    viewModel.postError("Please enter a valid transfer amount!")
+                                } else {
+                                    viewModel.transferWalletFunds(amt, contact.name)
+                                    transferAmountStr = ""
+                                    selectedContactForTransfer = null
+                                }
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = PrimaryPurple),
+                            shape = RoundedCornerShape(10.dp),
+                            modifier = Modifier
+                                .height(56.dp)
+                                .border(1.5.dp, PrimaryPurple, RoundedCornerShape(10.dp))
+                                .testTag("submit_transfer_btn")
+                        ) {
+                            Text(
+                                "Send ⚡",
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White,
+                                fontSize = 11.sp
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+

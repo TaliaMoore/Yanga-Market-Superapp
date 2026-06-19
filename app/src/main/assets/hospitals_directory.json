@@ -1,0 +1,65 @@
+[
+  {
+    "name": "St. Nicholas Premium Hospital",
+    "address": "Campus Square, Lagos Island",
+    "distanceKm": 1.1,
+    "specialties": ["General Wellness", "Pediatrics", "Post-natal Diagnostics", "Cardiology"],
+    "openHours": "24/7"
+  },
+  {
+    "name": "Reddington Multi-Specialist Clinic",
+    "address": "Adetokunbo Ademola St, VI",
+    "distanceKm": 2.4,
+    "specialties": ["Emergency General Medicine", "Dental Surgery", "Advanced Ultrasound Lab"],
+    "openHours": "24/7"
+  },
+  {
+    "name": "Evercare Hospital Lekki",
+    "address": "Lekki Phase 1, Lagos",
+    "distanceKm": 4.8,
+    "specialties": ["MRI & Lab Radiography", "Immunization", "Ophthalmology"],
+    "openHours": "24/7"
+  },
+  {
+    "name": "Lekki Women's Clinic",
+    "address": "Plot 5, block 11, Lekki",
+    "distanceKm": 1.5,
+    "specialties": ["Gynecology", "Obstetrics"],
+    "openHours": "24/7"
+  },
+  {
+    "name": "Eko Diagnostic & Specialist",
+    "address": "31 Mobolaji Bank Anthony Way, Ikeja",
+    "distanceKm": 8.0,
+    "specialties": ["Diagnostics", "CT Scan", "Cardiology"],
+    "openHours": "08:00 - 22:00"
+  },
+  {
+    "name": "Yanga Community Clinic",
+    "address": "12 Yanga Way, Surulere",
+    "distanceKm": 3.2,
+    "specialties": ["General Consultation", "Malaria Screening", "Pediatrics"],
+    "openHours": "08:00 - 20:00"
+  },
+  {
+    "name": "First Cardiology Consultants",
+    "address": "20 Thompson Ave, Ikoyi",
+    "distanceKm": 2.0,
+    "specialties": ["Cardiology", "Cardiovascular Surgery", "ICU Care"],
+    "openHours": "24/7"
+  },
+  {
+    "name": "Surulere General Hospital",
+    "address": "Randle Ave, Surulere, Lagos",
+    "distanceKm": 3.5,
+    "specialties": ["Emergency Medicine", "General Surgery", "Maternity"],
+    "openHours": "24/7"
+  },
+  {
+    "name": "Ikeja Medical Center",
+    "address": "11 Toyin St, Ikeja",
+    "distanceKm": 7.5,
+    "specialties": ["General Consultation", "Dentistry", "Optometry"],
+    "openHours": "24/7"
+  }
+]

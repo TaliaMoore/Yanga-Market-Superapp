@@ -1,6 +1,7 @@
 package com.example
 
 import com.example.domain.model.Event
+import com.example.domain.model.DinnerEvent
 import com.example.domain.model.FoodItem
 import com.example.domain.model.RetailItem
 import com.example.domain.model.Restaurant
@@ -16,8 +17,12 @@ import com.example.domain.model.OrderStatus
 import com.example.domain.model.Product
 import com.example.domain.model.Fruit
 import com.example.domain.model.Meal
+import com.example.domain.model.HospitalDirectoryService
+import com.example.domain.model.DnsSrvRecord
+import com.example.domain.model.ServiceDiscoveryRegistry
 import org.junit.Assert.*
 import org.junit.Test
+import java.util.UUID
 
 /**
  * Local unit tests to ensure business logic accuracy across entities.
@@ -117,6 +122,222 @@ class ExampleUnitTest {
   }
 
   @Test
+  fun testHospitalDirectoryService() {
+    val jsonString = """
+      [
+        {
+          "name": "St. Nicholas Premium Hospital",
+          "address": "Campus Square, Lagos Island",
+          "distanceKm": 1.1,
+          "specialties": ["General Wellness", "Pediatrics", "Cardiology"],
+          "openHours": "24/7"
+        },
+        {
+          "name": "Evercare Hospital Lekki",
+          "address": "Lekki Phase 1, Lagos",
+          "distanceKm": 4.8,
+          "specialties": ["MRI & Lab Radiography", "Immunization", "Ophthalmology"],
+          "openHours": "12:00 - 20:00"
+        },
+        {
+          "name": "Ikeja Medical Center",
+          "address": "11 Toyin St, Ikeja",
+          "distanceKm": 7.5,
+          "specialties": ["General Consultation", "Dentistry"],
+          "openHours": "24/7"
+        }
+      ]
+    """.trimIndent()
+
+    val directory = HospitalDirectoryService()
+    directory.loadHospitals(jsonString)
+
+    val all = directory.getAllHospitals()
+    assertEquals(3, all.size)
+
+    // Verify first entry details
+    val stNick = all[0]
+    assertEquals("St. Nicholas Premium Hospital", stNick.fetchName())
+    assertEquals("Campus Square, Lagos Island", stNick.fetchLocation())
+    assertEquals(1.1, stNick.distanceKm, 0.001)
+    assertEquals(listOf("General Wellness", "Pediatrics", "Cardiology"), stNick.specialties)
+    assertEquals("24/7", stNick.fetchOpenHours())
+
+    // 1. Search by Hospital Name (Case-insensitive)
+    val nameSearch = directory.searchByName("evercare")
+    assertEquals(1, nameSearch.size)
+    assertEquals("Evercare Hospital Lekki", nameSearch[0].fetchName())
+
+    // 2. Search by Location/Address
+    val locationSearch = directory.searchByLocation("ikeja")
+    assertEquals(1, locationSearch.size)
+    assertEquals("Ikeja Medical Center", locationSearch[0].fetchName())
+
+    // 3. Search by Services/Specialties
+    val serviceSearch = directory.searchByServices("pediatric")
+    assertEquals(1, serviceSearch.size)
+    assertEquals("St. Nicholas Premium Hospital", serviceSearch[0].fetchName())
+
+    val serviceSearch2 = directory.searchByServices("General")
+    assertEquals(2, serviceSearch2.size) // St Nicholas and Ikeja Medical Center
+
+    // 4. Multi-field lookup combines searches
+    val querySearch1 = directory.lookup("Lagos Island") // matches location
+    assertEquals(1, querySearch1.size)
+    assertEquals("St. Nicholas Premium Hospital", querySearch1[0].fetchName())
+
+    val querySearch2 = directory.lookup("Dentistry") // matches specialty
+    assertEquals(1, querySearch2.size)
+    assertEquals("Ikeja Medical Center", querySearch2[0].fetchName())
+
+    val emptySearch = directory.lookup("") // empty query returns all entries
+    assertEquals(3, emptySearch.size)
+  }
+  
+  @Test
+  fun testServiceDiscoveryAndSrvDynamicResolution() {
+    val registry = ServiceDiscoveryRegistry()
+
+    // Create a set of container SRV records representing hospital microservices pods
+    // Structure: service, protocol, domain, priority, weight, port, target, isHealthy
+    val podMain = DnsSrvRecord(
+        service = "hospital",
+        protocol = "http",
+        domain = "yanga.market",
+        priority = 10,
+        weight = 80,
+        port = 8081,
+        target = "hospital-pod-main.yanga.local",
+        isHealthy = true
+    )
+    val podBackup = DnsSrvRecord(
+        service = "hospital",
+        protocol = "http",
+        domain = "yanga.market",
+        priority = 10,
+        weight = 20,
+        port = 8082,
+        target = "hospital-pod-backup.yanga.local",
+        isHealthy = true
+    )
+    val podFailover = DnsSrvRecord(
+        service = "hospital",
+        protocol = "http",
+        domain = "yanga.market",
+        priority = 20, // higher priority number = lower precedence fallback
+        weight = 100,
+        port = 8083,
+        target = "hospital-pod-failover.yanga.local",
+        isHealthy = true
+    )
+
+    // Register all instances
+    registry.register(podMain)
+    registry.register(podBackup)
+    registry.register(podFailover)
+
+    // Verify raw DNS string serialization
+    assertEquals("_hospital._http.yanga.market. 3600 IN SRV 10 80 8081 hospital-pod-main.yanga.local", podMain.toDnsString())
+    assertEquals("http://hospital-pod-main.yanga.local:8081", podMain.getAddressUrl())
+
+    // 1. Resolve SRV entries. Should return records sorted by priority ascending, then weight descending.
+    val resolvedList = registry.resolveSrv("hospital", "http")
+    assertEquals(3, resolvedList.size)
+    // First priority is 10 (podMain and podBackup) sorted with higher weight first (podMain weight 80 comes before podBackup weight 20)
+    assertEquals(10, resolvedList[0].priority)
+    assertEquals("hospital-pod-main.yanga.local", resolvedList[0].target)
+    assertEquals(10, resolvedList[1].priority)
+    assertEquals("hospital-pod-backup.yanga.local", resolvedList[1].target)
+    // Third is priority 20
+    assertEquals(20, resolvedList[2].priority)
+    assertEquals("hospital-pod-failover.yanga.local", resolvedList[2].target)
+
+    // 2. Discover endpoint selects automatically from highest priority group (priority = 10)
+    val chosenEndpoint = registry.discoverEndpoint("hospital", "http")
+    assertNotNull(chosenEndpoint)
+    assertTrue(chosenEndpoint!!.target == "hospital-pod-main.yanga.local" || chosenEndpoint.target == "hospital-pod-backup.yanga.local")
+
+    // 3. Mark podMain as unhealthy (down for maintenance/restart)
+    registry.updateHealth("hospital-pod-main.yanga.local", 8081, isHealthy = false)
+
+    // Resolve now should skip podMain
+    val resolvedListPostFailure = registry.resolveSrv("hospital", "http")
+    assertEquals(2, resolvedListPostFailure.size)
+    assertEquals("hospital-pod-backup.yanga.local", resolvedListPostFailure[0].target)
+    assertEquals("hospital-pod-failover.yanga.local", resolvedListPostFailure[1].target)
+
+    // Dynamic endpoint lookup should now yield podBackup (only remaining healthy priority 10 candidate)
+    val endpointPostFailure = registry.discoverEndpoint("hospital", "http")
+    assertNotNull(endpointPostFailure)
+    assertEquals("hospital-pod-backup.yanga.local", endpointPostFailure!!.target)
+
+    // 4. Mark podBackup as unhealthy as well (whole primary deployment unavailable)
+    registry.updateHealth("hospital-pod-backup.yanga.local", 8082, isHealthy = false)
+
+    // Dynamic endpoint lookup should fall back seamlessly to priority 20 group
+    val endpointFallback = registry.discoverEndpoint("hospital", "http")
+    assertNotNull(endpointFallback)
+    assertEquals("hospital-pod-failover.yanga.local", endpointFallback!!.target)
+
+    // 5. Unregister test
+    registry.unregister("hospital-pod-failover.yanga.local", 8083)
+    val emptyEndpoint = registry.discoverEndpoint("hospital", "http")
+    assertNull(emptyEndpoint)
+  }
+
+  @Test
+  fun testFacilityRent2DArrayInquiry() {
+    val directory = com.example.domain.model.FacilityRentDirectory()
+    val rawGrid = directory.fetchRawGrid()
+
+    // Enforce 2D array coordinates verification (4 Floors x 3 Sections)
+    assertEquals(4, rawGrid.size)
+    assertEquals(3, rawGrid[0].size)
+
+    // Check Ground floor section A details (Floor Index 0, Section Index 0)
+    val gA = rawGrid[0][0]
+    assertEquals(0, gA.floorIndex)
+    assertEquals(0, gA.sectionIndex)
+    assertEquals("F1-A", gA.locationCode)
+    assertEquals(120000.0, gA.rentAmt, 0.001)
+    // Formula: (floorIndex + sectionIndex) % 2 != 0
+    // (0 + 0) % 2 != 0 -> 0 != 0 is False, so isAvailable is false
+    assertFalse(gA.isAvailable)
+
+    // Check Level 2 section B details (Floor Index 1, Section Index 1)
+    val level2B = rawGrid[1][1]
+    assertEquals(1, level2B.floorIndex)
+    assertEquals(1, level2B.sectionIndex)
+    assertEquals("F2-B", level2B.locationCode)
+    // rentAmt = 120000.0 * floorLabel + (sectionIndex * 45000.0) -> 120000 * 2 + 1 * 45000 = 285000.0
+    assertEquals(285000.0, level2B.rentAmt, 0.001)
+    // (1 + 1) % 2 != 0 -> 2 % 2 != 0 is False, so isAvailable is false
+    assertFalse(level2B.isAvailable)
+
+    // Check Level 2 section C details (Floor Index 1, Section Index 2)
+    val level2C = rawGrid[1][2]
+    // (1 + 2) % 2 != 0 -> 3 % 2 != 0 is True, so isAvailable is true
+    assertTrue(level2C.isAvailable)
+
+    // Verify lookup by location code
+    val foundByCode = directory.findByLocationCode("F2-B")
+    assertNotNull(foundByCode)
+    assertEquals("F2-B", foundByCode!!.locationCode)
+
+    // Case insensitive/no-dash lookup
+    val foundByNoDash = directory.findByLocationCode("f2b")
+    assertNotNull(foundByNoDash)
+    assertEquals("F2-B", foundByNoDash!!.locationCode)
+
+    // Verify lookup by floor level number (1..4)
+    val floor2Spaces = directory.findByFloorNumber(2)
+    assertEquals(3, floor2Spaces.size)
+    assertEquals("F2-A", floor2Spaces[0].locationCode)
+    assertEquals("F2-B", floor2Spaces[1].locationCode)
+    assertEquals("F2-C", floor2Spaces[2].locationCode)
+  }
+
+  @Test
   fun testCompositionNameAndAddress() {
     // 1. Create Address Component
     val addressComponent = NameAndAddress(
@@ -179,7 +400,7 @@ class ExampleUnitTest {
 
     event.setGuests(75)
     assertEquals(75, event.getNumberOfGuests())
-    assertEquals(75 * 35.0, event.getCalculatedPrice(), 0.001)
+    assertEquals(75 * 32.0, event.getCalculatedPrice(), 0.001)
     assertTrue(event.isLargeEvent()) // 75 >= 50
 
     // 3. Testing custom event number setting and getter/setter validation
@@ -189,6 +410,99 @@ class ExampleUnitTest {
     // Testing negative boundary case
     event.setGuests(-5)
     assertEquals(75, event.getNumberOfGuests()) // Should ignore invalid negative values and retain 75
+
+    // --- DinnerEvent Subclass Selection Logic Tests ---
+    val dinner = DinnerEvent(
+        title = "Executive Dinner Banquet",
+        host = "Yanga Corporate",
+        date = "2026-11-25",
+        time = "19:00",
+        venue = "Lekki Palace Hall",
+        initialGuests = 60
+    )
+
+    // Check menu arrays are non-empty
+    assertTrue(dinner.entrees.isNotEmpty())
+    assertTrue(dinner.sideDishes.isNotEmpty())
+    assertTrue(dinner.desserts.isNotEmpty())
+
+    // Initial state: nothing selected
+    assertNull(dinner.getSelectedEntree())
+    assertEquals(0, dinner.getSelectedSides().size)
+    assertNull(dinner.getSelectedDessert())
+    assertFalse(dinner.isDinnerSelectionComplete())
+
+    // Select entree
+    assertTrue(dinner.selectEntree("Beef Suya Steak"))
+    assertEquals("Beef Suya Steak", dinner.getSelectedEntree())
+    assertFalse(dinner.selectEntree("Caviar and Golden Rice")) // Not in available list
+
+    // Select side dishes (Should fail on 1 side or 3 sides, succeed on exactly 2 sides)
+    assertFalse(dinner.selectSides(arrayOf("Jollof Rice"))) 
+    assertFalse(dinner.selectSides(arrayOf("Jollof Rice", "Fried Plantain (Dodo)", "Yam Fries")))
+    assertFalse(dinner.selectSides(arrayOf("Jollof Rice", "Macaroni Salad"))) // Macaroni salad doesn't exist
+    
+    assertTrue(dinner.selectSides(arrayOf("Jollof Rice", "Fried Plantain (Dodo)")))
+    assertArrayEquals(arrayOf("Jollof Rice", "Fried Plantain (Dodo)"), dinner.getSelectedSides())
+
+    // Select dessert
+    assertTrue(dinner.selectDessert("Puff Puff with Ice Cream"))
+    assertEquals("Puff Puff with Ice Cream", dinner.getSelectedDessert())
+    assertFalse(dinner.selectDessert("Golden Gelato")) // Not in list
+
+    // Selection now is complete and valid
+    assertTrue(dinner.isDinnerSelectionComplete())
+
+    // --- Phone Number Field, Formatting & Digit-Stripping Validation ---
+    // Test default empty string
+    val phoneEventDefault = Event(
+        title = "Secret Gala Session",
+        host = "Yanga Secret",
+        date = "2026-07-01",
+        time = "20:00",
+        venue = "Main Hall"
+    )
+    assertEquals("", phoneEventDefault.getContactPhoneNumber())
+
+    // Test constructor initialization formatting
+    val phoneEventInitialized = Event(
+        title = "Gala Banquet Party",
+        host = "Yanga Party",
+        date = "2026-07-02",
+        time = "18:00",
+        venue = "Vantage Hall",
+        initialContactPhone = "9208729182"
+    )
+    assertEquals("(920) 872-9182", phoneEventInitialized.getContactPhoneNumber())
+
+    // Test setter stripping non-digits
+    phoneEventInitialized.setContactPhoneNumber("920-ABC--872-xyz-9182")
+    assertEquals("(920) 872-9182", phoneEventInitialized.getContactPhoneNumber())
+
+    // Test non-10-digit raw output fallback
+    phoneEventInitialized.setContactPhoneNumber("123-456")
+    assertEquals("123456", phoneEventInitialized.getContactPhoneNumber())
+
+    // --- Overloaded Constructors Validation ---
+    // 1. Default constructor
+    val defaultEvent = Event()
+    assertEquals("A000", defaultEvent.getEventNumber())
+    assertEquals(0, defaultEvent.getNumberOfGuests())
+    assertEquals(0.0, defaultEvent.getCalculatedPrice(), 0.001)
+
+    // 2. Designated constructor (requires specific event number and guest count)
+    val designatedEventLarge = Event("M987", 65)
+    assertEquals("M987", designatedEventLarge.getEventNumber())
+    assertEquals(65, designatedEventLarge.getNumberOfGuests())
+    // 65 >= 50 triggers the $32 rate
+    assertEquals(65 * 32.0, designatedEventLarge.getCalculatedPrice(), 0.001)
+
+    val designatedEventSmall = Event("K12", 20)
+    // Should pad K12 to K120 to enforce four characters
+    assertEquals("K120", designatedEventSmall.getEventNumber())
+    assertEquals(20, designatedEventSmall.getNumberOfGuests())
+    // 20 < 50 triggers the $35 rate
+    assertEquals(20 * 35.0, designatedEventSmall.getCalculatedPrice(), 0.001)
   }
 
   @Test
@@ -447,6 +761,135 @@ class ExampleUnitTest {
     assertEquals(15, (partyJollof as Meal).preparationTime) // Verified preparation time attribute
     assertEquals(2, partyJollof.servingsCount)
     assertEquals("Classic smoky Nigerian firewood party jollof", partyJollof.description)
+  }
+
+  @Test
+  fun testShellTerminalInquiryAndAddRemoveCases() {
+    val service = HospitalDirectoryService()
+    
+    // Setup initial records
+    val h1 = Hospital(id = "h1", name = "Lagoon Hospital", location = "Lagos Island", distanceKm = 1.5, specialties = listOf("Cardiology"), openHours = "24/7")
+    val h2 = Hospital(id = "h2", name = "St Nicholas", location = "Lafiaji", distanceKm = 2.0, specialties = listOf("Emergency"), openHours = "24/7")
+    service.setHospitals(listOf(h1, h2))
+
+    // Emulate command parsing cases (Kotlin when statement) mimicking executeTerminalCommand logic
+    fun executeMockCommand(cmd: String): Pair<String, List<Hospital>> {
+      val trimmed = cmd.trim()
+      val parts = trimmed.split(" ", limit = 2)
+      val action = parts[0]
+      val arguments = if (parts.size > 1) parts[1] else ""
+
+      return when (action) {
+        "1" -> {
+          try {
+            val m = service.lookup(arguments)
+            val resultStr = if (m.isEmpty()) "No matches" else "Found ${m.size} matches"
+            Pair(resultStr, service.getAllHospitals())
+          } catch (e: NoSuchElementException) {
+            Pair("Lookup: ${e.message}", service.getAllHospitals())
+          }
+        }
+        "2" -> {
+          val csv = arguments.split(",")
+          val name = csv[0].trim()
+          val loc = csv[1].trim()
+          val dist = csv[2].trim().toDoubleOrNull() ?: 1.0
+          val specs = csv[3].trim().split(";").map { it.trim() }
+
+          val newH = Hospital(UUID.randomUUID().toString(), name, loc, dist, specs)
+          service.addHospital(newH)
+          Pair("Success added", service.getAllHospitals())
+        }
+         "3" -> {
+          val removed = service.removeHospitalByName(arguments)
+          val resultStr = if (removed) "Removed successfully" else "No hospital found to remove"
+          Pair(resultStr, service.getAllHospitals())
+        }
+        else -> Pair("Invalid command", service.getAllHospitals())
+      }
+    }
+
+    // 1. Test case '1': lookup (matching)
+    val (lookStr, lookList) = executeMockCommand("1 Nicholas")
+    assertEquals("Found 1 matches", lookStr)
+    assertEquals(2, lookList.size)
+
+    // 1b. Test case '1': lookup (not matching / descriptive error scenario)
+    val (failLookStr, _) = executeMockCommand("1 NonExistentLagosClinic")
+    assertTrue(failLookStr.contains("does not match any active hospital name"))
+    assertTrue(failLookStr.contains("NonExistentLagosClinic"))
+
+    // 2. Test case '2': add
+    val (addStr, addList) = executeMockCommand("2 Reddington Clinic, Lekki, 3.5, Pediatrics;Emergency")
+    assertEquals("Success added", addStr)
+    assertEquals(3, addList.size)
+    assertTrue(addList.any { it.name == "Reddington Clinic" })
+
+    // 3. Test case '3': remove
+    val (remStr, remList) = executeMockCommand("3 Reddington Clinic")
+    assertEquals("Removed successfully", remStr)
+    assertEquals(2, remList.size)
+    assertFalse(remList.any { it.name == "Reddington Clinic" })
+  }
+
+  @Test
+  fun testWalletPurseCoinConversion() {
+    // Test that the conversion correctly tracks 1 gold = 100 silver pieces
+    val state = com.example.domain.model.WalletState(balance = 12345.0)
+    val purse = state.purse
+
+    // 12345 silver pieces should be equivalent to 123 gold pieces and 45 silver pieces
+    assertEquals(123, purse.goldCoins)
+    assertEquals(45, purse.silverCoins)
+    assertEquals(12345, purse.toTotalSilverPieces())
+
+    // Direct instantiation mapping
+    val customPurse = com.example.domain.model.CoinPurse(5, 78)
+    assertEquals(578, customPurse.toTotalSilverPieces())
+    
+    val recreated = com.example.domain.model.CoinPurse.fromValue(578.0)
+    assertEquals(5, recreated.goldCoins)
+    assertEquals(78, recreated.silverCoins)
+
+    // Verify performPurchase method
+    // 5 gold, 78 silver = 578 silver pieces. Subtracting 120 silver pieces leaves 458 silver pieces = 4 gold, 58 silver.
+    val updatedPurse = customPurse.performPurchase(120.0)
+    assertEquals(4, updatedPurse.goldCoins)
+    assertEquals(58, updatedPurse.silverCoins)
+    assertEquals(458, updatedPurse.toTotalSilverPieces())
+
+    // Try a purchase directly on WalletState
+    val originalWallet = com.example.domain.model.WalletState(balance = 12345.0)
+    val updatedWallet = originalWallet.performPurchase(345.0) // 12345 - 345 = 12000 => 120 Gold and 0 Silver
+    assertEquals(120, updatedWallet.purse.goldCoins)
+    assertEquals(0, updatedWallet.purse.silverCoins)
+    assertEquals(12000.0, updatedWallet.balance, 0.001)
+
+    // Verify exception for insufficient funds
+    assertThrows(IllegalArgumentException::class.java) {
+      customPurse.performPurchase(1000.0)
+    }
+  }
+
+  @Test
+  fun testBillingCalculations() {
+    val billing = com.example.domain.model.Billing()
+
+    // 1. Single item price scenario
+    val bill1 = billing.computeBill(125.753)
+    assertEquals(125.75, bill1, 0.0)
+
+    // 2. Item price with quantity scenario
+    val bill2 = billing.computeBill(45.50, 3)
+    assertEquals(136.50, bill2, 0.0)
+
+    // 3. Item price with quantity minus coupon scenario
+    val bill3 = billing.computeBill(99.99, 2, 15.50)
+    assertEquals(184.48, bill3, 0.0) // 99.99 * 2 = 199.98 - 15.50 = 184.48
+
+    // 4. Over-valued coupon scenario (should floor at 0.0)
+    val bill4 = billing.computeBill(10.00, 2, 50.00)
+    assertEquals(0.0, bill4, 0.0)
   }
 }
 

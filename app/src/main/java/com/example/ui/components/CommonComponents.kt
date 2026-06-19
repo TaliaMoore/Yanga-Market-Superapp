@@ -247,3 +247,89 @@ fun YangaBadge(
         )
     }
 }
+
+/**
+ * Lead Software Architect: Visual Identity and Layout Container representing a nested styled "div" equivalent.
+ * Creates visually distinct blocks for sections utilizing neobrutalist borders, padding, and cozy brand colors.
+ */
+@Composable
+fun YangaVisuallyDistinctSection(
+    modifier: Modifier = Modifier,
+    title: String? = null,
+    subtitle: String? = null,
+    backgroundColor: Color = Color.White,
+    borderColor: Color = PrimaryPurple,
+    borderWidth: Double = 2.0,
+    headerBadgeText: String? = null,
+    headerBadgeColor: Color = SecondaryYellow,
+    content: @Composable ColumnScope.() -> Unit
+) {
+    Card(
+        colors = CardDefaults.cardColors(containerColor = backgroundColor),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+        shape = RoundedCornerShape(16.dp),
+        modifier = modifier
+            .padding(vertical = 8.dp)
+            .border(borderWidth.dp, borderColor, RoundedCornerShape(16.dp))
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp)
+        ) {
+            if (title != null || headerBadgeText != null) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 12.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        if (title != null) {
+                            Text(
+                                text = title,
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = CharcoalBlack
+                            )
+                        }
+                        if (subtitle != null) {
+                            Text(
+                                text = subtitle,
+                                fontSize = 11.sp,
+                                color = CharcoalBlack.copy(alpha = 0.6f),
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+                    }
+                    if (headerBadgeText != null) {
+                        YangaBadge(text = headerBadgeText, containerColor = headerBadgeColor)
+                    }
+                }
+            }
+            content()
+        }
+    }
+}
+
+/**
+ * Lead Software Architect: Flow Layout system organizing labels, buttons, or parameters across multiple wrapping rows.
+ * Simulates adaptive browser layout behavior for screen size class fluid responsiveness.
+ */
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+@Composable
+fun YangaFlowButtonsLayout(
+    modifier: Modifier = Modifier,
+    horizontalArrangement: Arrangement.Horizontal = Arrangement.spacedBy(8.dp),
+    verticalArrangement: Arrangement.Vertical = Arrangement.spacedBy(8.dp),
+    content: @Composable FlowRowScope.() -> Unit
+) {
+    FlowRow(
+        modifier = modifier.fillMaxWidth(),
+        horizontalArrangement = horizontalArrangement,
+        verticalArrangement = verticalArrangement,
+        content = content
+    )
+}
+

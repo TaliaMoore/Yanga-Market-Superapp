@@ -2,6 +2,7 @@ package com.example
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.background
@@ -24,6 +25,61 @@ import com.example.ui.components.YangaStatusBanners
 import com.example.ui.screens.*
 import com.example.ui.theme.*
 
+/**
+ * Lead Software Architect: Domain routing solution mimicking a HashRouter/NavLink browser history system.
+ * Manages full navigation endpoints (with leading slashes, e.g. /home, /food, /events, /hospitals) 
+ * and implements a functional backstack-based browser history state for seamless hardware back-button support.
+ */
+class YangaHashRouter(initialRoute: String = "/home") {
+    var currentRoute by mutableStateOf(initialRoute)
+        private set
+
+    val backStack = mutableStateListOf<String>()
+
+    init {
+        // Initialize the browser history back stack with the starting route
+        backStack.add(normalize(initialRoute))
+    }
+
+    /**
+     * Navigates to a target route representation.
+     * Sanitizes inputs to ensure browser paths, endpoints, and old key-strings map correctly.
+     */
+    fun navigate(route: String) {
+        val normalized = normalize(route)
+        if (currentRoute == normalized) return
+
+        // To mimic browser navigation, push to the backstack
+        backStack.add(normalized)
+        currentRoute = normalized
+        android.util.Log.d("YangaHashRouter", "NavLink navigate -> Push state: $normalized. Current History: $backStack")
+    }
+
+    /**
+     * Pops from the backstack to simulate browser back transitions.
+     * If there is history, navigate to the previous route; otherwise remain.
+     * @return true if back-navigation was performed, false if stack is at root.
+     */
+    fun navigateBack(): Boolean {
+        if (backStack.size > 1) {
+            backStack.removeLast()
+            currentRoute = backStack.last()
+            android.util.Log.d("YangaHashRouter", "History back -> Pop state. Current Route: $currentRoute. Remaining History: $backStack")
+            return true
+        }
+        return false
+    }
+
+    /**
+     * Normalizes inputs so slash paths and legacy string routes map perfectly to browser endpoints.
+     */
+    private fun normalize(route: String): String {
+        val cleaned = if (route.startsWith("/")) route else "/$route"
+        // Co-locate alias routes: /food aliases with /market
+        return if (cleaned == "/food") "/market" else cleaned
+    }
+}
+
 class MainActivity : ComponentActivity() {
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
@@ -40,7 +96,20 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun YangaSuperappShell() {
   val viewModel: MainViewModel = viewModel()
-  var currentRoute by remember { mutableStateOf("home") }
+  val router = remember { YangaHashRouter("/home") }
+  val currentRoute = router.currentRoute
+
+  val isUserAuthenticated by viewModel.isUserAuthenticated.collectAsState()
+
+  if (!isUserAuthenticated) {
+    OnboardingScreen(viewModel = viewModel)
+    return
+  }
+
+  // Capture hardware back button or gestural back swipe to navigate back through router history
+  BackHandler(enabled = router.backStack.size > 1) {
+    router.navigateBack()
+  }
 
   // Observe global messaging state for ledger approvals or errors
   val errorBanner by viewModel.errorBannerMessage.collectAsState()
@@ -49,12 +118,13 @@ fun YangaSuperappShell() {
 
   // Navigation Items
   val navItems = listOf(
-    NavigationTabItem("home", "Home", Icons.Default.Widgets),
-    NavigationTabItem("market", "Market", Icons.Default.Storefront),
-    NavigationTabItem("events", "Events", Icons.Default.ConfirmationNumber),
-    NavigationTabItem("hospitals", "Care", Icons.Default.LocalHospital),
-    NavigationTabItem("vibes", "Vibes", Icons.Default.Campaign),
-    NavigationTabItem("wallet", "Wallet", Icons.Default.AccountBalanceWallet)
+    NavigationTabItem("/home", "Home", Icons.Default.Widgets),
+    NavigationTabItem("/market", "Market", Icons.Default.Storefront),
+    NavigationTabItem("/events", "Events", Icons.Default.ConfirmationNumber),
+    NavigationTabItem("/hospitals", "Care", Icons.Default.LocalHospital),
+    NavigationTabItem("/services", "Freelance", Icons.Default.Work),
+    NavigationTabItem("/vibes", "Vibes", Icons.Default.Campaign),
+    NavigationTabItem("/wallet", "Wallet", Icons.Default.AccountBalanceWallet)
   )
 
   Scaffold(
@@ -78,7 +148,7 @@ fun YangaSuperappShell() {
             selected = selected,
             onClick = {
               viewModel.clearBanners()
-              currentRoute = item.route
+              router.navigate(item.route)
             },
             icon = {
               Icon(
@@ -99,7 +169,7 @@ fun YangaSuperappShell() {
             colors = NavigationBarItemDefaults.colors(
               indicatorColor = SecondaryYellow
             ),
-            modifier = Modifier.testTag("nav_item_${item.route}")
+            modifier = Modifier.testTag("nav_item_${item.route.replace("/", "")}")
           )
         }
       }
@@ -134,19 +204,34 @@ fun YangaSuperappShell() {
         // --- Active Screen Fragment Routing ---
         Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
           when (currentRoute) {
-            "home" -> DashboardScreen(
+            "/home" -> DashboardScreen(
               viewModel = viewModel,
               onNavigate = { route ->
                 viewModel.clearBanners()
-                currentRoute = route
+                router.navigate(route)
               }
             )
-            "market" -> MarketScreen(viewModel = viewModel)
-            "events" -> EventsScreen(viewModel = viewModel)
-            "hospitals" -> HospitalScreen(viewModel = viewModel)
-            "vibes" -> VibesScreen(viewModel = viewModel)
-            "wallet" -> WalletScreen(viewModel = viewModel)
-            else -> DashboardScreen(viewModel = viewModel, onNavigate = { currentRoute = it })
+            "/market" -> MarketScreen(viewModel = viewModel)
+            "/events" -> EventsScreen(viewModel = viewModel)
+            "/hospitals" -> HospitalScreen(viewModel = viewModel)
+            "/services" -> ServicesScreen(viewModel = viewModel)
+            "/vibes" -> VibesScreen(viewModel = viewModel)
+            "/wallet" -> WalletScreen(viewModel = viewModel)
+            "/yanga_rider" -> YangaRiderScreen(onNavigateBack = { router.navigateBack() })
+            "/bulkbuy", "/bulkbuy5k", "/bulkbuy10k", "/bulkbuy15k", "/bulkbuy30k" -> {
+              val initId = when (currentRoute) {
+                "/bulkbuy10k" -> "box_10k"
+                "/bulkbuy15k" -> "box_15k"
+                "/bulkbuy30k" -> "box_30k"
+                else -> "box_5k"
+              }
+              BulkBuyScreen(
+                viewModel = viewModel,
+                initialBoxId = initId,
+                onNavigateBack = { router.navigateBack() }
+              )
+            }
+            else -> DashboardScreen(viewModel = viewModel, onNavigate = { router.navigate(it) })
           }
         }
       }
