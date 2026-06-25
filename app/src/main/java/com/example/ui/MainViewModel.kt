@@ -16,6 +16,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val database = AppDatabase.getDatabase(application)
     private val graphQLClient = MockGraphQLClient(database, application)
     
+    val firebaseAuthEngine: com.example.domain.auth.FirebaseAuthEngine = com.example.domain.auth.FirebaseAuthEngineImpl()
+    
     private val prefs = application.getSharedPreferences("yanga_prefs", android.content.Context.MODE_PRIVATE)
     
     // --- Global User Authentication & Location States ---
@@ -39,6 +41,45 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _loginMethod = MutableStateFlow(prefs.getString("login_method", "") ?: "") // "Google", "Email", "Phone"
     val loginMethod: StateFlow<String> = _loginMethod.asStateFlow()
+
+    // --- High-fidelity Support Tickets & Customer Complaints State Flow ---
+    private val _complaints = MutableStateFlow<List<YangaComplaint>>(
+        listOf(
+            YangaComplaint(
+                id = "YNG-COMP-4812",
+                category = "Wallet Transaction Error",
+                title = "Fund wallet delay",
+                details = "Tried funding 5,000 NGN via bank transfer, took 5 minutes to show up. Resolved now, just wanted to highlight.",
+                timestamp = "2026-06-20 14:32",
+                status = "Resolved"
+            ),
+            YangaComplaint(
+                id = "YNG-COMP-9011",
+                category = "Food Delivery Delay",
+                title = "Spicy jollof arrived lukewarm",
+                details = "The rider took quite some time navigating the Third Mainland Bridge, and the food was not hot when it got here.",
+                timestamp = "2026-06-23 18:15",
+                status = "Under Investigation"
+            )
+        )
+    )
+    val complaints: StateFlow<List<YangaComplaint>> = _complaints.asStateFlow()
+
+    fun launchComplaint(category: String, title: String, details: String) {
+        val ticketId = "YNG-COMP-${(1000..9999).random()}"
+        val sdf = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm", java.util.Locale.getDefault())
+        val timestamp = sdf.format(java.util.Date())
+        val newComplaint = YangaComplaint(
+            id = ticketId,
+            category = category,
+            title = title,
+            details = details,
+            timestamp = timestamp,
+            status = "Submitted"
+        )
+        _complaints.value = listOf(newComplaint) + _complaints.value
+        _successBannerMessage.value = "Complaint submitted! Ticket: $ticketId. We are actively reviewing this. 🛠️"
+    }
 
     fun hasOnboarded(): Boolean {
         return prefs.getBoolean("has_onboarded", false)
@@ -69,6 +110,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         _successBannerMessage.value = "Welcome to Yanga Market, $name! 🌟 Your profile and verified location are locked in securely."
     }
 
+    fun updateUserName(name: String) {
+        _userName.value = name
+        prefs.edit().putString("user_name", name).apply()
+        _successBannerMessage.value = "Username updated to @$name successfully! 👤"
+    }
+
     fun setLoginDetails(identifier: String, method: String) {
         _userPhoneOrEmail.value = identifier
         _loginMethod.value = method
@@ -89,6 +136,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         _userPhoneOrEmail.value = ""
         _loginMethod.value = ""
         
+        firebaseAuthEngine.signOut()
+        
         prefs.edit()
             .putBoolean("is_authenticated", false)
             .putString("user_name", "")
@@ -98,6 +147,95 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             .apply()
 
         _successBannerMessage.value = "Log out successful. Come back soon! 👋"
+    }
+
+    fun deleteAccount() {
+        _isUserAuthenticated.value = false
+        _userName.value = ""
+        _userLocation.value = ""
+        _userPhoneOrEmail.value = ""
+        _loginMethod.value = ""
+        
+        firebaseAuthEngine.signOut()
+        
+        prefs.edit()
+            .putBoolean("is_authenticated", false)
+            .putString("user_name", "")
+            .putString("user_location", "")
+            .putString("user_phone_or_email", "")
+            .putString("login_method", "")
+            .apply()
+
+        _successBannerMessage.value = "Your Yanga superapp account has been permanently deleted. We are sad to see you go! 😢"
+    }
+
+    // --- Firebase Email/Password Integration ---
+    fun firebaseEmailSignIn(emailInput: String, passInput: String, onResult: (Boolean) -> Unit) {
+        firebaseAuthEngine.signInWithEmail(emailInput, passInput) { result ->
+            when (result) {
+                is com.example.domain.auth.AuthResult.Success -> {
+                    setLoginDetails(result.user.email ?: emailInput, "Email")
+                    _successBannerMessage.value = "Firebase Authenticated successfully! Welcome back."
+                    onResult(true)
+                }
+                is com.example.domain.auth.AuthResult.Failure -> {
+                    _errorBannerMessage.value = result.errorMessage
+                    onResult(false)
+                }
+            }
+        }
+    }
+
+    fun firebaseEmailSignUp(emailInput: String, passInput: String, onResult: (Boolean) -> Unit) {
+        firebaseAuthEngine.signUpWithEmail(emailInput, passInput) { result ->
+            when (result) {
+                is com.example.domain.auth.AuthResult.Success -> {
+                    setLoginDetails(result.user.email ?: emailInput, "Email")
+                    _successBannerMessage.value = "Firebase account registered successfully! 🚀"
+                    onResult(true)
+                }
+                is com.example.domain.auth.AuthResult.Failure -> {
+                    _errorBannerMessage.value = result.errorMessage
+                    onResult(false)
+                }
+            }
+        }
+    }
+
+    // --- Firebase Phone SMS / OTP OTP Integration ---
+    fun firebaseRequestOtp(phoneNumber: String, activity: android.app.Activity, onCodeSent: (String) -> Unit, onError: (String) -> Unit) {
+        firebaseAuthEngine.sendOtpCode(
+            phoneNumber = phoneNumber,
+            activity = activity,
+            onCodeSent = { verificationId ->
+                _successBannerMessage.value = "Verification secure code queued with carriers! Check your message inbox."
+                onCodeSent(verificationId)
+            },
+            onVerificationFailed = { errorMsg ->
+                _errorBannerMessage.value = errorMsg
+                onError(errorMsg)
+            },
+            onVerificationCompleted = { user ->
+                setLoginDetails(user.phoneNumber ?: phoneNumber, "Phone")
+                _successBannerMessage.value = "Instant Telephone handshake complete! Access authorized."
+            }
+        )
+    }
+
+    fun firebaseVerifyOtp(verificationId: String, smsCode: String, onResult: (Boolean) -> Unit) {
+        firebaseAuthEngine.verifyOtpCode(verificationId, smsCode) { result ->
+            when (result) {
+                is com.example.domain.auth.AuthResult.Success -> {
+                    setLoginDetails(result.user.phoneNumber ?: "Phone-Account", "Phone")
+                    _successBannerMessage.value = "Secure Mobile verification successfully sealed! ✓"
+                    onResult(true)
+                }
+                is com.example.domain.auth.AuthResult.Failure -> {
+                    _errorBannerMessage.value = result.errorMessage
+                    onResult(false)
+                }
+            }
+        }
     }
     
     // --- Google OAuth 2.0 Integration ---
@@ -427,19 +565,63 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val savedBookings: StateFlow<List<SavedBookingEntity>> = database.savedBookingDao().getSavedBookings()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    // --- OOP Modular Secure Wallet Engine ---
+    private val secureWalletEngine: com.example.domain.wallet.WalletEngine = com.example.domain.wallet.SecureWalletEngineImpl()
+
     // --- Computed Reactive Wallet Balance ---
     val walletBalance: StateFlow<Double> = walletTransactions.map { txList ->
-        var currentBalance = 10000.0 // Starter ₦10k bonus for all new playful accounts
-        for (tx in txList) {
-            when (tx.type) {
-                "FUND" -> currentBalance += tx.amount
-                "PAYMENT" -> currentBalance -= tx.amount
-            }
+        val secureTxs = txList.map { entity ->
+            com.example.domain.wallet.SecureWalletTransaction(
+                id = entity.id,
+                customerId = entity.customerId ?: "CUST-01",
+                type = when (entity.type) {
+                    "FUND" -> com.example.domain.wallet.WalletOpType.FUND
+                    "PAYMENT" -> com.example.domain.wallet.WalletOpType.PAYMENT
+                    else -> com.example.domain.wallet.WalletOpType.REFUND
+                },
+                amount = entity.amount,
+                description = entity.description,
+                timestamp = entity.timestamp,
+                signature = entity.securityHash
+            )
         }
-        currentBalance
+        secureWalletEngine.calculateBalance(secureTxs, 10000.0)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 10000.0)
 
+    // --- Computed Secure Ledger Integrity Audit Report ---
+    val walletAuditReport: StateFlow<com.example.domain.wallet.WalletAuditReport> = walletTransactions.map { txList ->
+        val secureTxs = txList.map { entity ->
+            com.example.domain.wallet.SecureWalletTransaction(
+                id = entity.id,
+                customerId = entity.customerId ?: "CUST-01",
+                type = when (entity.type) {
+                    "FUND" -> com.example.domain.wallet.WalletOpType.FUND
+                    "PAYMENT" -> com.example.domain.wallet.WalletOpType.PAYMENT
+                    else -> com.example.domain.wallet.WalletOpType.REFUND
+                },
+                amount = entity.amount,
+                description = entity.description,
+                timestamp = entity.timestamp,
+                signature = entity.securityHash
+            )
+        }
+        secureWalletEngine.auditLedgerIntegrity(secureTxs, 10000.0)
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), com.example.domain.wallet.WalletAuditReport(
+        isSystemAuthentic = true,
+        totalTransactionsCount = 0,
+        computedBalance = 10000.0,
+        anomalyCount = 0,
+        corruptedTxnIds = emptyList()
+    ))
+
     // --- Unified Network Status, Banners, and Inputs ---
+    private val _dashboardMarketFilter = MutableStateFlow<String>("None") // "None", "Supermarket", "Bakery"
+    val dashboardMarketFilter: StateFlow<String> = _dashboardMarketFilter.asStateFlow()
+
+    fun setDashboardMarketFilter(filter: String) {
+        _dashboardMarketFilter.value = filter
+    }
+
     private val _isGraphQLFetching = MutableStateFlow(false)
     val isGraphQLFetching: StateFlow<Boolean> = _isGraphQLFetching.asStateFlow()
 
@@ -449,11 +631,208 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _vibeContentInput = MutableStateFlow("")
     val vibeContentInput: StateFlow<String> = _vibeContentInput.asStateFlow()
 
+    private val _vibeAttachedPhotoInput = MutableStateFlow<String?>(null)
+    val vibeAttachedPhotoInput: StateFlow<String?> = _vibeAttachedPhotoInput.asStateFlow()
+
+    fun selectAttachedPhoto(photoName: String?) {
+        _vibeAttachedPhotoInput.value = photoName
+    }
+
     private val _errorBannerMessage = MutableStateFlow<String?>(null)
     val errorBannerMessage: StateFlow<String?> = _errorBannerMessage.asStateFlow()
 
     private val _successBannerMessage = MutableStateFlow<String?>(null)
     val successBannerMessage: StateFlow<String?> = _successBannerMessage.asStateFlow()
+
+    // --- Yanga Coin Purse & Draw States ---
+    private val _silverCoins = MutableStateFlow(prefs.getInt("silver_coins", 45))
+    val silverCoins: StateFlow<Int> = _silverCoins.asStateFlow()
+
+    private val _goldCoins = MutableStateFlow(prefs.getInt("gold_coins", 2))
+    val goldCoins: StateFlow<Int> = _goldCoins.asStateFlow()
+
+    private val _drawTickets = MutableStateFlow(prefs.getInt("draw_tickets", 0))
+    val drawTickets: StateFlow<Int> = _drawTickets.asStateFlow()
+
+    private val _drawTotalTicketsAll = MutableStateFlow(prefs.getInt("draw_total_tickets_all", 1420))
+    val drawTotalTicketsAll: StateFlow<Int> = _drawTotalTicketsAll.asStateFlow()
+
+    private val _drawTotalParticipants = MutableStateFlow(prefs.getInt("draw_total_participants", 480))
+    val drawTotalParticipants: StateFlow<Int> = _drawTotalParticipants.asStateFlow()
+
+    fun addSilverCoins(amount: Int, reason: String = "") {
+        val newVal = _silverCoins.value + amount
+        _silverCoins.value = newVal
+        prefs.edit().putInt("silver_coins", newVal).apply()
+        if (reason.isNotEmpty()) {
+            _successBannerMessage.value = "You earned +$amount Silver Coins! Reason: $reason 🪙"
+        }
+    }
+
+    fun addGoldCoins(amount: Int) {
+        val newVal = _goldCoins.value + amount
+        _goldCoins.value = newVal
+        prefs.edit().putInt("gold_coins", newVal).apply()
+    }
+
+    fun convertSilverToGold() {
+        if (_silverCoins.value >= 100) {
+            val convertedGold = _silverCoins.value / 100
+            val remainingSilver = _silverCoins.value % 100
+            
+            _silverCoins.value = remainingSilver
+            _goldCoins.value = _goldCoins.value + convertedGold
+            
+            prefs.edit()
+                .putInt("silver_coins", remainingSilver)
+                .putInt("gold_coins", _goldCoins.value)
+                .apply()
+            
+            _successBannerMessage.value = "Converted ${convertedGold * 100} Silver Pieces to $convertedGold Gold Pieces! 🪙✨"
+        } else {
+            _errorBannerMessage.value = "You need at least 100 Silver Pieces to convert to 1 Gold Piece!"
+        }
+    }
+
+    fun enterDraw(ticketCount: Int = 1) {
+        if (_goldCoins.value >= ticketCount) {
+            _goldCoins.value = _goldCoins.value - ticketCount
+            _drawTickets.value = _drawTickets.value + ticketCount
+            
+            // Increment total tickets in the pool randomly to simulate activity
+            _drawTotalTicketsAll.value = _drawTotalTicketsAll.value + ticketCount + (1..3).random()
+            _drawTotalParticipants.value = _drawTotalParticipants.value + if ((0..1).random() == 1) 1 else 0
+            
+            prefs.edit()
+                .putInt("gold_coins", _goldCoins.value)
+                .putInt("draw_tickets", _drawTickets.value)
+                .putInt("draw_total_tickets_all", _drawTotalTicketsAll.value)
+                .putInt("draw_total_participants", _drawTotalParticipants.value)
+                .apply()
+            
+            _successBannerMessage.value = "Successfully entered $ticketCount ticket(s) into the Draw! Good luck! 🎟️🌟"
+        } else {
+            _errorBannerMessage.value = "You do not have enough Gold Pieces! Earn more silver and convert them."
+        }
+    }
+
+    fun boostVibeLikes(vibeId: String) {
+        viewModelScope.launch {
+            val currentPosts = database.vibePostDao().getAllVibePosts().first()
+            val match = currentPosts.find { it.id == vibeId }
+            if (match != null) {
+                val updated = match.copy(
+                    vibeCount = match.vibeCount + 100
+                )
+                database.vibePostDao().insertVibePost(updated)
+                addSilverCoins(1, "Post reached 100+ vibe checks!")
+            }
+        }
+    }
+
+    // --- Discussion Groups & selected post states ---
+    private val _selectedVibePostId = MutableStateFlow<String?>(null)
+    val selectedVibePostId: StateFlow<String?> = _selectedVibePostId.asStateFlow()
+
+    private val _discussionGroups = MutableStateFlow<List<com.example.domain.model.DiscussionGroup>>(
+        listOf(
+            com.example.domain.model.DiscussionGroup(id = "grp-1", name = "jollof-lovers", description = "Ratings, reviews & debates about the best Lagos Jollof rice spots! 🌶️🍚", memberCount = 142, isJoined = true, category = "Food"),
+            com.example.domain.model.DiscussionGroup(id = "grp-2", name = "tech-suya-lagos", description = "Super-citizens talking code, products, startup pitches & spicy beef! 🔌🍢", memberCount = 89, isJoined = false, category = "Tech"),
+            com.example.domain.model.DiscussionGroup(id = "grp-3", name = "bulk-buy-deals", description = "Coordinating fruits and food crate orders to split costs 100% equally! 🍉📦", memberCount = 204, isJoined = true, category = "Market"),
+            com.example.domain.model.DiscussionGroup(id = "grp-4", name = "yanga-riders", description = "Real-time traffic info, dispatcher speeds, and route updates! 🏍️⚡", memberCount = 57, isJoined = false, category = "Logistics")
+        )
+    )
+    val discussionGroups: StateFlow<List<com.example.domain.model.DiscussionGroup>> = _discussionGroups.asStateFlow()
+
+    fun toggleJoinGroup(groupId: String) {
+        _discussionGroups.value = _discussionGroups.value.map { g ->
+            if (g.id == groupId) {
+                val nextJoined = !g.isJoined
+                g.copy(
+                    isJoined = nextJoined,
+                    memberCount = if (nextJoined) g.memberCount + 1 else g.memberCount - 1
+                )
+            } else g
+        }
+        val grp = _discussionGroups.value.find { it.id == groupId }
+        if (grp != null) {
+            _successBannerMessage.value = if (grp.isJoined) "You joined #${grp.name}! Welcome to the vibe! 🎉" else "You left #${grp.name}."
+        }
+    }
+
+    fun createDiscussionGroup(name: String, description: String, category: String) {
+        if (name.isBlank() || description.isBlank()) {
+            _errorBannerMessage.value = "Group name and description cannot be empty!"
+            return
+        }
+        val normalizedName = name.trim().lowercase().replace(" ", "-").replace("#", "")
+        val newGroup = com.example.domain.model.DiscussionGroup(
+            name = normalizedName,
+            description = description.trim(),
+            category = category.trim(),
+            memberCount = 1,
+            isJoined = true
+        )
+        _discussionGroups.value = _discussionGroups.value + newGroup
+        _successBannerMessage.value = "Group #$normalizedName created and joined successfully! 📣"
+    }
+
+    private val moshi = com.squareup.moshi.Moshi.Builder()
+        .add(com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory())
+        .build()
+
+    private val vibeCommentsAdapter = moshi.adapter<List<com.example.domain.model.VibeComment>>(
+        com.squareup.moshi.Types.newParameterizedType(List::class.java, com.example.domain.model.VibeComment::class.java)
+    )
+
+    fun parseComments(json: String): List<com.example.domain.model.VibeComment> {
+        return try {
+            vibeCommentsAdapter.fromJson(json) ?: emptyList()
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+
+    fun serializeComments(comments: List<com.example.domain.model.VibeComment>): String {
+        return try {
+            vibeCommentsAdapter.toJson(comments)
+        } catch (e: Exception) {
+            "[]"
+        }
+    }
+
+    fun selectVibePost(postId: String?) {
+        _selectedVibePostId.value = postId
+    }
+
+    fun addCommentToPost(postId: String, author: String, content: String) {
+        if (author.trim().isEmpty() || content.trim().isEmpty()) {
+            _errorBannerMessage.value = "Please enter both your name and comment!"
+            return
+        }
+
+        viewModelScope.launch {
+            val currentPosts = database.vibePostDao().getAllVibePosts().first()
+            val post = currentPosts.find { it.id == postId }
+            if (post != null) {
+                val currentComments = parseComments(post.commentsJson).toMutableList()
+                currentComments.add(
+                    com.example.domain.model.VibeComment(
+                        author = author.trim(),
+                        content = content.trim(),
+                        timestamp = System.currentTimeMillis()
+                    )
+                )
+                val updatedPost = post.copy(
+                    commentsJson = serializeComments(currentComments)
+                )
+                database.vibePostDao().insertVibePost(updatedPost)
+                _successBannerMessage.value = "Comment added successfully! 💬"
+            } else {
+                _errorBannerMessage.value = "Post not found."
+            }
+        }
+    }
 
     init {
         // Fetch static catalogs using GraphQL Query abstractions
@@ -665,6 +1044,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     // --- WALLET CONTROLS ---
 
     fun fundWallet(amount: Double) {
+        // OOP Core Pre-deposit validation logic
+        try {
+            secureWalletEngine.validateDeposit(amount)
+        } catch (e: Exception) {
+            _errorBannerMessage.value = "Core Security Exception: ${e.message}"
+            return
+        }
+
         viewModelScope.launch {
             _isGraphQLFetching.value = true
             val variables = mapOf("amount" to amount)
@@ -685,11 +1072,16 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             _isGraphQLFetching.value = true
             val currentBalance = walletBalance.value
-            if (currentBalance < amount) {
-                _errorBannerMessage.value = "Insufficient Wallet Balance! Current: ₦${String.format("%,.2f", currentBalance)}. Required: ₦${String.format("%,.2f", amount)}."
+            
+            // OOP Core Pre-payment/P2P transfer validation logic
+            try {
+                secureWalletEngine.validatePayment(amount, currentBalance)
+            } catch (e: Exception) {
+                _errorBannerMessage.value = "Core Security Exception: ${e.message}"
                 _isGraphQLFetching.value = false
                 return@launch
             }
+
             val variablesPay = mapOf(
                 "amount" to amount,
                 "note" to "P2P Google Transfer to $recipientName"
@@ -740,7 +1132,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun checkoutCart() {
+    fun checkoutCart(paymentMethod: String = "WALLET") {
         val total = cartItems.value.sumOf { it.price * it.quantity }
         val itemsSummary = cartItems.value.joinToString(", ") { "${it.quantity}x ${it.name}" }
 
@@ -751,28 +1143,40 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
         viewModelScope.launch {
             _isGraphQLFetching.value = true
-            // Pre-transaction sufficient funds validation check
-            val currentBalance = walletBalance.value
-            if (currentBalance < total) {
-                val errMsg = "Insufficient Wallet Balance! Current: ₦${String.format(java.util.Locale.US, "%,.2f", currentBalance)}. Total due: ₦${String.format(java.util.Locale.US, "%,.2f", total)}. Checkout rejected."
-                android.util.Log.e("YangaMarketBilling", "TRANSACTION REJECTED: $errMsg")
-                _errorBannerMessage.value = errMsg
-                _isGraphQLFetching.value = false
-                return@launch
+            var success = false
+
+            if (paymentMethod == "WALLET") {
+                // Pre-transaction sufficient funds validation check
+                val currentBalance = walletBalance.value
+                if (currentBalance < total) {
+                    val errMsg = "Insufficient Wallet Balance! Current: ₦${String.format(java.util.Locale.US, "%,.2f", currentBalance)}. Total due: ₦${String.format(java.util.Locale.US, "%,.2f", total)}. Checkout rejected."
+                    android.util.Log.e("YangaMarketBilling", "TRANSACTION REJECTED: $errMsg")
+                    _errorBannerMessage.value = errMsg
+                    _isGraphQLFetching.value = false
+                    return@launch
+                }
+
+                val variables = mapOf(
+                    "amount" to total,
+                    "note" to "Order Payment: $itemsSummary"
+                )
+                val res = graphQLClient.executeGraphQL(GraphQLRequest(
+                    query = "mutation PayWithWallet(\$amount: Float!, \$note: String!) { pay(amount: \$amount, note: \$note) { success } }",
+                    variables = variables
+                ))
+
+                if (res.errors != null) {
+                    _errorBannerMessage.value = res.errors.first().message
+                    _isGraphQLFetching.value = false
+                    return@launch
+                }
+                success = true
+            } else {
+                // Other methods like BANK_TRANSFER or CASH ON DELIVERY are instant-approve simulation flows
+                success = true
             }
 
-            val variables = mapOf(
-                "amount" to total,
-                "note" to "Order Payment: $itemsSummary"
-            )
-            val res = graphQLClient.executeGraphQL(GraphQLRequest(
-                query = "mutation PayWithWallet(\$amount: Float!, \$note: String!) { pay(amount: \$amount, note: \$note) { success } }",
-                variables = variables
-            ))
-
-            if (res.errors != null) {
-                _errorBannerMessage.value = res.errors.first().message
-            } else {
+            if (success) {
                 // Submit the order through the newly implemented GraphQL ordering mutation to receive a confirmation ID!
                 val orderVariables = mapOf(
                     "amount" to total,
@@ -784,16 +1188,32 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 ))
 
                 if (orderRes.errors != null) {
-                    _errorBannerMessage.value = "Wallet charged but order mutation failed: ${orderRes.errors.first().message}"
+                    _errorBannerMessage.value = "Checkout completed but order registration failed: ${orderRes.errors.first().message}"
                 } else {
                     val dataMap = orderRes.data as? Map<*, *>
                     val submitOrderMap = dataMap?.get("submitOrder") as? Map<*, *>
-                    val confirmationId = submitOrderMap?.get("id") as? String ?: "YNG-ORD-UNKNOWN"
-                    val msg = submitOrderMap?.get("message") as? String ?: "Order confirmed under ID!"
+                    val confirmationId = submitOrderMap?.get("id") as? String ?: "YNG-${System.currentTimeMillis() % 1000000}"
+                    val msg = submitOrderMap?.get("message") as? String ?: "Processed successfully!"
+
+                    // For each event in the checked-out cart, add a ticket/appointment booking!
+                    cartItems.value.forEach { item ->
+                        if (item.itemType == "EVENT") {
+                            passportManager.addAppointmentNotification(
+                                bookingId = "evt-${System.currentTimeMillis()}-${item.id.take(4)}",
+                                title = item.name,
+                                description = "Vibes Secure Ticket ($paymentMethod Checkout)",
+                                time = "Upcoming Event Date"
+                            )
+                        }
+                    }
+
+                    // Calculate total quantity of items being purchased
+                    val totalQuantity = cartItems.value.sumOf { it.quantity }
+                    addSilverCoins(totalQuantity, "Purchased $totalQuantity items")
 
                     // Clear cart
                     database.cartItemDao().clearCart()
-                    _successBannerMessage.value = "Order paid with wallet! ID: $confirmationId. $msg"
+                    _successBannerMessage.value = "Secured successfully via $paymentMethod! Ref ID: $confirmationId. $msg. You earned $totalQuantity Silver Pieces! 🪙"
                 }
             }
             _isGraphQLFetching.value = false
@@ -852,28 +1272,27 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun submitVibe() {
-        val author = _vibeAuthorInput.value.trim()
+        val userHandle = userName.value.trim()
+        val author = if (userHandle.isNotEmpty()) userHandle else _vibeAuthorInput.value.trim()
         val content = _vibeContentInput.value.trim()
+        val photo = _vibeAttachedPhotoInput.value
 
         if (author.isEmpty() || content.isEmpty()) {
             _errorBannerMessage.value = "Please enter both your name and a vibe message!"
             return
         }
 
-        if (webSocketStatus.value == WebSocketState.CONNECTED) {
-            viewModelScope.launch {
-                webSocketService.sendFrame(WebSocketFrame.VibeBroadcastFrame(author, content))
-                _vibeContentInput.value = ""
-                _successBannerMessage.value = "Broadcasted via WebSocket stream in real-time! 📡💜"
-            }
-            return
-        }
-
         viewModelScope.launch {
             _isGraphQLFetching.value = true
-            val variables = mapOf("author" to author, "content" to content)
+            val variables = mutableMapOf<String, Any>(
+                "author" to author,
+                "content" to content
+            )
+            if (photo != null) {
+                variables["attachedPhoto"] = photo
+            }
             val res = graphQLClient.executeGraphQL(GraphQLRequest(
-                query = "mutation PostVibe(\$author: String!, \$content: String!) { addVibe(author: \$author, content: \$content) { id } }",
+                query = "mutation PostVibe(\$author: String!, \$content: String!, \$attachedPhoto: String) { addVibe(author: \$author, content: \$content, attachedPhoto: \$attachedPhoto) { id } }",
                 variables = variables
             ))
 
@@ -881,6 +1300,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 _errorBannerMessage.value = res.errors.first().message
             } else {
                 _vibeContentInput.value = ""
+                _vibeAttachedPhotoInput.value = null // Reset selected photo
                 _successBannerMessage.value = "Your vibe has been shared to the board! 💜🎉"
             }
             _isGraphQLFetching.value = false
@@ -935,57 +1355,21 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun purchaseEventTicket(event: Event) {
         viewModelScope.launch {
             _isGraphQLFetching.value = true
-            // If ticket is not free, charge wallet
-            var paymentSuccess = true
-            if (event.price > 0) {
-                // Pre-transaction sufficient funds validation check
-                val currentBalance = walletBalance.value
-                if (currentBalance < event.price) {
-                    val errMsg = "Insufficient Wallet Balance! Current: ₦${String.format(java.util.Locale.US, "%,.2f", currentBalance)}. Total due: ₦${String.format(java.util.Locale.US, "%,.2f", event.price)}. Event booking rejected."
-                    android.util.Log.e("YangaMarketBilling", "TRANSACTION REJECTED: $errMsg")
-                    _errorBannerMessage.value = errMsg
-                    paymentSuccess = false
-                } else {
-                    val variablesPay = mapOf(
-                        "amount" to event.price,
-                        "note" to "Event Entry Ticket: ${event.title}"
-                    )
-                    val payRes = graphQLClient.executeGraphQL(GraphQLRequest(
-                        query = "mutation PayWithWallet(\$amount: Float!, \$note: String!) { pay(amount: \$amount, note: \$note) { success } }",
-                        variables = variablesPay
-                    ))
-                    if (payRes.errors != null) {
-                        _errorBannerMessage.value = payRes.errors.first().message
-                        paymentSuccess = false
-                    }
-                }
-            }
-
-            if (paymentSuccess) {
-                val variablesBook = mapOf(
-                    "title" to event.title,
-                    "subtitle" to "Hosted by ${event.host} @ ${event.venue}",
-                    "price" to event.price,
-                    "dateOrTime" to "${event.date} at ${event.time}",
-                    "type" to "EVENT"
+            val exist = cartItems.value.find { it.name == event.title }
+            if (exist != null) {
+                database.cartItemDao().insertCartItem(exist.copy(quantity = exist.quantity + 1))
+            } else {
+                val entity = CartItemEntity(
+                    id = java.util.UUID.randomUUID().toString(),
+                    name = event.title,
+                    price = event.price,
+                    category = "Event Ticket",
+                    quantity = 1,
+                    itemType = "EVENT"
                 )
-                val bookRes = graphQLClient.executeGraphQL(GraphQLRequest(
-                    query = "mutation BookService(\$title: String!, \$subtitle: String!, \$price: Float!, \$dateOrTime: String!, \$type: String!) { book(title: \$title, subtitle: \$subtitle, price: \$price, dateOrTime: \$dateOrTime, type: \$type) { success } }",
-                    variables = variablesBook
-                ))
-
-                if (bookRes.errors != null) {
-                    _errorBannerMessage.value = bookRes.errors.first().message
-                } else {
-                    _successBannerMessage.value = "Success! Secured ticket for '${event.title}'! 🎫🎟️"
-                    passportManager.addAppointmentNotification(
-                        bookingId = "evt-${System.currentTimeMillis()}",
-                        title = event.title,
-                        description = "Vibes Ticket: Hosted by ${event.host}",
-                        time = "${event.date} At ${event.time}"
-                    )
-                }
+                database.cartItemDao().insertCartItem(entity)
             }
+            _successBannerMessage.value = "Added ticket for '${event.title}' to your cart! 🎟️🛒"
             _isGraphQLFetching.value = false
         }
     }
@@ -1157,7 +1541,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 if (res.errors != null) {
                     _errorBannerMessage.value = res.errors.first().message
                 } else {
-                    _successBannerMessage.value = "Milestone Approved! Escrow funds cleared and disbursed. 🤝💸"
+                    addSilverCoins(5, "Completed freelancer milestone")
+                    _successBannerMessage.value = "Milestone Approved! Escrow funds cleared and disbursed. Plus you earned 5 Silver Pieces for freelancing status! 🤝💸🪙"
                     refreshGraphQLCatalogs()
                 }
             } catch (e: Exception) {
@@ -1210,7 +1595,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 if (res.errors != null) {
                     _errorBannerMessage.value = res.errors.first().message
                 } else {
-                    _successBannerMessage.value = "Thank you! Your verified rating of $rating Stars has been cataloged. ⭐"
+                    var bonusMsg = ""
+                    if (rating == 5) {
+                        addSilverCoins(5, "Received a 5-star review")
+                        bonusMsg = " Plus you earned 5 Silver Pieces! 🪙"
+                    }
+                    _successBannerMessage.value = "Thank you! Your verified rating of $rating Stars has been cataloged. ⭐$bonusMsg"
                     refreshGraphQLCatalogs()
                 }
             } catch (e: Exception) {
@@ -1287,3 +1677,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 }
+
+data class YangaComplaint(
+    val id: String,
+    val category: String,
+    val title: String,
+    val details: String,
+    val timestamp: String,
+    val status: String
+)

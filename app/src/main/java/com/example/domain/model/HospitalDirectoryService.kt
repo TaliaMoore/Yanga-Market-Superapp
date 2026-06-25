@@ -87,25 +87,33 @@ class HospitalDirectoryService {
                 Hospital(
                     id = UUID.randomUUID().toString(),
                     name = "St. Nicholas Premium Hospital",
-                    location = "Campus Square, Lagos Island",
+                    location = "Campus Square, Lagos Island LGA",
                     distanceKm = 1.1,
-                    specialties = listOf("General Wellness", "Pediatrics", "Cardiology"),
+                    specialties = listOf("General Practitioner", "Pediatrician (Child Specialist)", "Cardiologist (Heart Doctor)", "Gynecologist (Maternity)"),
+                    openHours = "24/7"
+                ),
+                Hospital(
+                    id = UUID.randomUUID().toString(),
+                    name = "Reddington Multi-Specialist Clinic",
+                    location = "Adetokunbo Ademola St, Victoria Island (Eti-Osa LGA)",
+                    distanceKm = 2.4,
+                    specialties = listOf("General Practitioner", "Dentist (Dental Surgery)", "Gynecologist (Maternity)", "Pediatrician"),
                     openHours = "24/7"
                 ),
                 Hospital(
                     id = UUID.randomUUID().toString(),
                     name = "Evercare Hospital Lekki",
-                    location = "Lekki Phase 1, Lagos",
+                    location = "Lekki Phase 1, Lekki (Eti-Osa LGA)",
                     distanceKm = 4.8,
-                    specialties = listOf("MRI & Lab Radiography", "Immunization", "Ophthalmology"),
+                    specialties = listOf("Optician (Eye Care)", "Pediatrician (Child Specialist)", "General Practitioner"),
                     openHours = "12:00 - 20:00"
                 ),
                 Hospital(
                     id = UUID.randomUUID().toString(),
                     name = "Ikeja Medical Center",
-                    location = "11 Toyin St, Ikeja",
+                    location = "11 Toyin St, Ikeja LGA",
                     distanceKm = 7.5,
-                    specialties = listOf("General Consultation", "Dentistry"),
+                    specialties = listOf("General Practitioner", "Dentist", "Optician (Eye Care)", "Pediatrician (Child Specialist)", "Gynecologist (Maternity)"),
                     openHours = "24/7"
                 )
             )

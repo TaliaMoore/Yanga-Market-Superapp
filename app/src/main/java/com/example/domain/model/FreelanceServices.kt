@@ -49,7 +49,12 @@ data class FreelancerProfile(
     val category: String, // e.g. "Software", "Event Prep", "Creative Arts", "Catering"
     val portfolioGallery: List<String>, // List of beautiful conceptual descriptors or mock images
     val serviceListings: List<String>,  // Specific customized package line-items
-    val reviews: List<FreelancerReview> = emptyList()
+    val reviews: List<FreelancerReview> = emptyList(),
+    val linkedinUrl: String? = null,
+    val githubUrl: String? = null,
+    val profileImageRes: Int? = null,
+    val portfolioImages: List<Int> = emptyList(),
+    val skills: List<String> = emptyList()
 ) {
     fun calculateAverageRating(): Double {
         if (reviews.isEmpty()) return rating

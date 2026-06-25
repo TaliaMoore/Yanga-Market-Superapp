@@ -22,6 +22,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.R
 import com.example.ui.MainViewModel
 import com.example.ui.components.*
 import com.example.ui.theme.CharcoalBlack
@@ -36,6 +37,43 @@ fun HospitalScreen(
     val hospitals by viewModel.hospitals.collectAsState()
     val searchQuery by viewModel.hospitalSearchQuery.collectAsState()
     val hospitalSearchError by viewModel.hospitalSearchError.collectAsState()
+
+    var selectedDoctorType by remember { mutableStateOf("All Doctors") }
+    var selectedLocationType by remember { mutableStateOf("All Areas") }
+
+    val filteredHospitals = remember(hospitals, searchQuery, selectedDoctorType, selectedLocationType) {
+        hospitals.filter { hospital ->
+            val matchesSearch = if (searchQuery.isBlank()) {
+                true
+            } else {
+                hospital.name.contains(searchQuery, ignoreCase = true) ||
+                hospital.location.contains(searchQuery, ignoreCase = true) ||
+                hospital.specialties.any { it.contains(searchQuery, ignoreCase = true) }
+            }
+
+            val matchesDoctor = when (selectedDoctorType) {
+                "All Doctors" -> true
+                "Pediatrician" -> hospital.specialties.any { it.contains("Pediatr", ignoreCase = true) }
+                "Gynecologist" -> hospital.specialties.any { it.contains("Gynecol", ignoreCase = true) || it.contains("natal", ignoreCase = true) }
+                "Optician" -> hospital.specialties.any { it.contains("Optic", ignoreCase = true) || it.contains("Ophthal", ignoreCase = true) }
+                "Cardiologist" -> hospital.specialties.any { it.contains("Cardio", ignoreCase = true) }
+                "Dentist" -> hospital.specialties.any { it.contains("Dentis", ignoreCase = true) || it.contains("Dental", ignoreCase = true) }
+                "General Practitioner" -> hospital.specialties.any { it.contains("General", ignoreCase = true) || it.contains("Practitioner", ignoreCase = true) }
+                else -> true
+            }
+
+            val matchesLocation = when (selectedLocationType) {
+                "All Areas" -> true
+                "Closest (< 3km)" -> hospital.distanceKm <= 3.0
+                "Lagos Island" -> hospital.location.contains("Lagos Island", ignoreCase = true)
+                "Eti-Osa (VI/Lekki)" -> hospital.location.contains("Eti-Osa", ignoreCase = true) || hospital.location.contains("VI", ignoreCase = true) || hospital.location.contains("Lekki", ignoreCase = true)
+                "Ikeja" -> hospital.location.contains("Ikeja", ignoreCase = true)
+                else -> true
+            }
+
+            matchesSearch && matchesDoctor && matchesLocation
+        }
+    }
 
     LazyColumn(
         modifier = modifier
@@ -81,15 +119,115 @@ fun HospitalScreen(
             }
         }
 
-        // --- Shell-Style Interactive Command Line Terminal ---
+        // --- Filters Section ---
         item {
-            HospitalShellConsoleCard(viewModel = viewModel)
+            Card(
+                colors = CardDefaults.cardColors(containerColor = Color(0xFFFAFAFA)),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .border(1.dp, PrimaryPurple.copy(alpha = 0.15f), RoundedCornerShape(16.dp))
+            ) {
+                Column(
+                    modifier = Modifier.padding(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text(
+                        text = "Choose Doctor Specialty 🩺",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = PrimaryPurple
+                    )
+                    
+                    val doctorTypes = listOf(
+                        "All Doctors" to "🩺 All Doctors",
+                        "Pediatrician" to "👶 Pediatrician",
+                        "Gynecologist" to "🤰 Gynecologist",
+                        "Optician" to "👁️ Optician",
+                        "Cardiologist" to "🫀 Cardiologist",
+                        "Dentist" to "🦷 Dentist",
+                        "General Practitioner" to "👨‍⚕️ Gen Practitioner"
+                    )
+                    
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        doctorTypes.forEach { (typeKey, label) ->
+                            val isSelected = selectedDoctorType == typeKey
+                            FilterChip(
+                                selected = isSelected,
+                                onClick = { selectedDoctorType = typeKey },
+                                label = { Text(text = label, fontSize = 11.sp, fontWeight = FontWeight.Bold) },
+                                colors = FilterChipDefaults.filterChipColors(
+                                    selectedContainerColor = PrimaryPurple,
+                                    selectedLabelColor = Color.White,
+                                    containerColor = Color.White,
+                                    labelColor = CharcoalBlack
+                                ),
+                                border = FilterChipDefaults.filterChipBorder(
+                                    enabled = true,
+                                    selected = isSelected,
+                                    borderColor = PrimaryPurple.copy(alpha = 0.3f),
+                                    selectedBorderColor = PrimaryPurple
+                                )
+                            )
+                        }
+                    }
+                    
+                    Spacer(modifier = Modifier.height(2.dp))
+                    
+                    Text(
+                        text = "Filter by Location & Area 📍",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = PrimaryPurple
+                    )
+                    
+                    val locationTypes = listOf(
+                        "All Areas" to "🌍 All Areas",
+                        "Closest (< 3km)" to "⚡ Closest (< 3km)",
+                        "Lagos Island" to "🏙️ Lagos Island",
+                        "Eti-Osa (VI/Lekki)" to "🏝️ VI / Lekki",
+                        "Ikeja" to "🏡 Ikeja"
+                    )
+                    
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        locationTypes.forEach { (locKey, label) ->
+                            val isSelected = selectedLocationType == locKey
+                            FilterChip(
+                                selected = isSelected,
+                                onClick = { selectedLocationType = locKey },
+                                label = { Text(text = label, fontSize = 11.sp, fontWeight = FontWeight.Bold) },
+                                colors = FilterChipDefaults.filterChipColors(
+                                    selectedContainerColor = SecondaryYellow,
+                                    selectedLabelColor = CharcoalBlack,
+                                    containerColor = Color.White,
+                                    labelColor = CharcoalBlack
+                                ),
+                                border = FilterChipDefaults.filterChipBorder(
+                                    enabled = true,
+                                    selected = isSelected,
+                                    borderColor = PrimaryPurple.copy(alpha = 0.3f),
+                                    selectedBorderColor = PrimaryPurple
+                                )
+                            )
+                        }
+                    }
+                }
+            }
         }
 
         // --- Directory Title ---
         item {
             Text(
-                text = "Participating Medical Centres 🩺",
+                text = "Participating Medical Centres 🏥",
                 fontSize = 18.sp,
                 fontWeight = FontWeight.ExtraBold,
                 color = CharcoalBlack
@@ -106,7 +244,7 @@ fun HospitalScreen(
                     .testTag("hospital_search_input"),
                 placeholder = {
                     Text(
-                        text = "Search by name, location, or services...",
+                        text = "Search by name, LGA, specialty...",
                         fontSize = 13.sp,
                         color = CharcoalBlack.copy(alpha = 0.5f)
                     )
@@ -145,39 +283,35 @@ fun HospitalScreen(
         }
 
         // --- Interactive Hospital Rows ---
-        if (hospitals.isEmpty()) {
+        if (filteredHospitals.isEmpty()) {
             item {
-                if (searchQuery.isNotEmpty()) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(24.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Icon(
-                                imageVector = Icons.Default.SearchOff,
-                                contentDescription = "No results",
-                                modifier = Modifier.size(48.dp),
-                                tint = CharcoalBlack.copy(alpha = 0.3f)
-                            )
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text(
-                                text = hospitalSearchError ?: "No medical centers found matching your query.",
-                                fontSize = 13.sp,
-                                color = if (hospitalSearchError != null) Color(0xFFC2410C) else CharcoalBlack.copy(alpha = 0.5f),
-                                fontWeight = FontWeight.Bold,
-                                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                                modifier = Modifier.padding(horizontal = 16.dp)
-                            )
-                        }
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(24.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Icon(
+                            imageVector = Icons.Default.SearchOff,
+                            contentDescription = "No results",
+                            modifier = Modifier.size(48.dp),
+                            tint = CharcoalBlack.copy(alpha = 0.3f)
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = "No medical centers match your search or filter options.",
+                            fontSize = 13.sp,
+                            color = CharcoalBlack.copy(alpha = 0.5f),
+                            fontWeight = FontWeight.Bold,
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                            modifier = Modifier.padding(horizontal = 16.dp)
+                        )
                     }
-                } else {
-                    LoaderPlaceholder()
                 }
             }
         } else {
-            items(hospitals, key = { it.name }) { hospital ->
+            items(filteredHospitals, key = { it.name }) { hospital ->
                 HospitalDiscoveryCard(hospital = hospital, onBook = { service, date ->
                     viewModel.bookHospitalService(hospital, service, date)
                 })
@@ -205,6 +339,20 @@ fun HospitalDiscoveryCard(
             .padding(2.dp)
     ) {
         Column(modifier = Modifier.padding(14.dp)) {
+            // Hospital image with picture
+            val imageRes = getHospitalImageRes(hospital.name)
+            androidx.compose.foundation.Image(
+                painter = androidx.compose.ui.res.painterResource(id = imageRes),
+                contentDescription = hospital.name,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(140.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .border(1.5.dp, PrimaryPurple.copy(alpha = 0.2f), RoundedCornerShape(12.dp)),
+                contentScale = androidx.compose.ui.layout.ContentScale.Crop
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+
             // Title, distance, location
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -385,236 +533,12 @@ fun HospitalDiscoveryCard(
     }
 }
 
-@Composable
-fun HospitalShellConsoleCard(
-    viewModel: MainViewModel,
-    modifier: Modifier = Modifier
-) {
-    val consoleInput by viewModel.terminalConsoleInput.collectAsState()
-    val consoleLogs by viewModel.terminalLogs.collectAsState()
-
-    Card(
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFF1E1E1E)), // Dark console container
-        modifier = modifier
-            .fillMaxWidth()
-            .border(2.dp, PrimaryPurple, RoundedCornerShape(16.dp))
-    ) {
-        Column(modifier = Modifier.padding(14.dp)) {
-            // Screen Header
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(10.dp)
-                            .background(Color.Red, RoundedCornerShape(5.dp))
-                    )
-                    Box(
-                        modifier = Modifier
-                            .size(10.dp)
-                            .background(Color.Yellow, RoundedCornerShape(5.dp))
-                    )
-                    Box(
-                        modifier = Modifier
-                            .size(10.dp)
-                            .background(Color.Green, RoundedCornerShape(5.dp))
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(
-                        text = "yanga-sh : hospital-admin",
-                        color = Color.White,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold,
-                        fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
-                    )
-                }
-                IconButton(
-                    onClick = { viewModel.executeTerminalCommand("clear") },
-                    modifier = Modifier.size(24.dp).testTag("terminal_clear_btn")
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Refresh,
-                        contentDescription = "Restart console / Clear",
-                        tint = Color.LightGray,
-                        modifier = Modifier.size(16.dp)
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(10.dp))
-
-            // Output Log Box
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(150.dp)
-                    .background(Color.Black, RoundedCornerShape(8.dp))
-                    .border(1.dp, Color(0xFF333333), RoundedCornerShape(8.dp))
-                    .padding(8.dp)
-            ) {
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    verticalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    itemsIndexed(consoleLogs, key = { index, _ -> "hospital_console_log_$index" }) { index, log ->
-                        Text(
-                            text = log,
-                            color = if (log.startsWith("$")) Color(0xFFE9D5FF) else if (log.contains("Error")) Color(0xFFFCA5A5) else if (log.contains("Success")) Color(0xFF86EFAC) else Color(0xFFF3F4F6),
-                            fontSize = 11.sp,
-                            fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
-                            lineHeight = 14.sp
-                        )
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            // Text input with prompt prefix
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Text(
-                    text = "$",
-                    color = PrimaryPurple,
-                    fontWeight = FontWeight.ExtraBold,
-                    fontSize = 16.sp,
-                    fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
-                )
-
-                OutlinedTextField(
-                    value = consoleInput,
-                    onValueChange = { viewModel.updateTerminalInput(it) },
-                    placeholder = {
-                        Text(
-                            text = "e.g., 1 Lagoon or help",
-                            fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
-                            fontSize = 12.sp,
-                            color = Color.Gray
-                        )
-                    },
-                    modifier = Modifier.weight(1f).testTag("terminal_console_input"),
-                    textStyle = androidx.compose.ui.text.TextStyle(
-                        color = Color.White,
-                        fontSize = 12.sp,
-                        fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
-                    ),
-                    shape = RoundedCornerShape(8.dp),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = PrimaryPurple,
-                        unfocusedBorderColor = Color(0xFF333333),
-                        focusedContainerColor = Color.Black,
-                        unfocusedContainerColor = Color.Black,
-                        cursorColor = PrimaryPurple
-                    ),
-                    singleLine = true
-                )
-
-                Button(
-                    onClick = { viewModel.executeTerminalCommand(consoleInput) },
-                    colors = ButtonDefaults.buttonColors(containerColor = PrimaryPurple),
-                    shape = RoundedCornerShape(8.dp),
-                    contentPadding = PaddingValues(horizontal = 12.dp),
-                    modifier = Modifier.testTag("terminal_execute_btn")
-                ) {
-                    Text(
-                        text = "Run",
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(10.dp))
-
-            // Preset Command Buttons
-            Text(
-                text = "Preset Command Shortcuts:",
-                color = Color.LightGray,
-                fontSize = 10.sp,
-                fontWeight = FontWeight.Bold,
-                fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
-            )
-            Spacer(modifier = Modifier.height(6.dp))
-
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .horizontalScroll(rememberScrollState())
-            ) {
-                // Preset 1: Lookup
-                Box(
-                    modifier = Modifier
-                        .background(Color(0xFF2E2E2E), RoundedCornerShape(6.dp))
-                        .clickable { viewModel.updateTerminalInput("1 Lagoon") }
-                        .padding(horizontal = 8.dp, vertical = 4.dp)
-                ) {
-                    Text(
-                        text = "(1) Lookup Lagoon",
-                        color = Color(0xFFE9D5FF),
-                        fontSize = 9.sp,
-                        fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
-                    )
-                }
-
-                // Preset 2: Add
-                Box(
-                    modifier = Modifier
-                        .background(Color(0xFF2E2E2E), RoundedCornerShape(6.dp))
-                        .clickable {
-                            viewModel.updateTerminalInput("2 Reddington Lekki, Admiralty Way Lekki, 6.2, Cardiology;Orthopedics")
-                        }
-                        .padding(horizontal = 8.dp, vertical = 4.dp)
-                ) {
-                    Text(
-                        text = "(2) Add Reddington",
-                        color = Color(0xFFD1FAE5),
-                        fontSize = 9.sp,
-                        fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
-                    )
-                }
-
-                // Preset 3: Remove
-                Box(
-                    modifier = Modifier
-                        .background(Color(0xFF2E2E2E), RoundedCornerShape(6.dp))
-                        .clickable { viewModel.updateTerminalInput("3 Lagoon Hospital") }
-                        .padding(horizontal = 8.dp, vertical = 4.dp)
-                ) {
-                    Text(
-                        text = "(3) Remove Lagoon",
-                        color = Color(0xFFFCA5A5),
-                        fontSize = 9.sp,
-                        fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
-                    )
-                }
-
-                // Help
-                Box(
-                    modifier = Modifier
-                        .background(Color(0xFF2E2E2E), RoundedCornerShape(6.dp))
-                        .clickable { viewModel.executeTerminalCommand("help") }
-                        .padding(horizontal = 8.dp, vertical = 4.dp)
-                ) {
-                    Text(
-                        text = "help",
-                        color = Color(0xFF93C5FD),
-                        fontSize = 9.sp,
-                        fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
-                    )
-                }
-            }
-        }
+fun getHospitalImageRes(name: String): Int {
+    return when {
+        name.contains("Nicholas", ignoreCase = true) -> R.drawable.img_hosp_st_nicholas_1782285464859
+        name.contains("Reddington", ignoreCase = true) -> R.drawable.img_hosp_reddington_1782285482444
+        name.contains("Evercare", ignoreCase = true) -> R.drawable.img_hosp_evercare_1782285499453
+        name.contains("Ikeja", ignoreCase = true) -> R.drawable.img_hosp_ikeja_med_1782285513084
+        else -> R.drawable.img_hosp_st_nicholas_1782285464859
     }
 }

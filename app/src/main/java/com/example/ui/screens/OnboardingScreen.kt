@@ -36,6 +36,8 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.platform.LocalContext
+import android.app.Activity
 import com.example.ui.MainViewModel
 import com.example.ui.theme.*
 import kotlinx.coroutines.delay
@@ -71,6 +73,11 @@ fun OnboardingScreen(
     var chosenMethod by remember { mutableStateOf<String?>(null) } // "Google", "Email", "Phone"
     var isAuthenticating by remember { mutableStateOf(false) }
     var showGooglePageChooser by remember { mutableStateOf(false) }
+    
+    var isEmailRegistering by remember { mutableStateOf(false) }
+    var smsVerificationId by remember { mutableStateOf<String?>(null) }
+    var otpSmsCode by remember { mutableStateOf("") }
+    val localContext = LocalContext.current
     
     // Profile Fields & Map Data
     var fullNameInput by remember { mutableStateOf("") }
@@ -575,7 +582,20 @@ fun OnboardingScreen(
                                                 horizontalArrangement = Arrangement.SpaceBetween,
                                                 verticalAlignment = Alignment.CenterVertically
                                             ) {
-                                                Text("Email Authorization Gateway", fontWeight = FontWeight.Bold, color = PrimaryPurple, fontSize = 13.sp)
+                                                Column {
+                                                    Text(
+                                                        text = if (isEmailRegistering) "Register New Account" else "Email Authorization Gateway",
+                                                        fontWeight = FontWeight.Bold,
+                                                        color = PrimaryPurple,
+                                                        fontSize = 13.sp
+                                                    )
+                                                    Text(
+                                                        text = if (viewModel.firebaseAuthEngine.isFirebaseAvailable()) "Firebase Auth Active" else "Yanga Sandbox Enabled",
+                                                        fontSize = 10.sp,
+                                                        color = if (viewModel.firebaseAuthEngine.isFirebaseAvailable()) BrandGreen else BoldGold,
+                                                        fontWeight = FontWeight.Bold
+                                                    )
+                                                }
                                                 Icon(
                                                     imageVector = Icons.Default.Close,
                                                     contentDescription = "Close Form",
@@ -586,11 +606,40 @@ fun OnboardingScreen(
                                                 )
                                             }
 
+                                            // Tab selection
+                                            Row(
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .background(PlayfulBg, RoundedCornerShape(8.dp))
+                                                    .padding(4.dp)
+                                            ) {
+                                                Box(
+                                                    modifier = Modifier
+                                                        .weight(1f)
+                                                        .background(if (!isEmailRegistering) Color.White else Color.Transparent, RoundedCornerShape(6.dp))
+                                                        .clickable { isEmailRegistering = false }
+                                                        .padding(vertical = 6.dp),
+                                                    contentAlignment = Alignment.Center
+                                                ) {
+                                                    Text("Sign In", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = if (!isEmailRegistering) PrimaryPurple else Color.Gray)
+                                                }
+                                                Box(
+                                                    modifier = Modifier
+                                                        .weight(1f)
+                                                        .background(if (isEmailRegistering) Color.White else Color.Transparent, RoundedCornerShape(6.dp))
+                                                        .clickable { isEmailRegistering = true }
+                                                        .padding(vertical = 6.dp),
+                                                    contentAlignment = Alignment.Center
+                                                ) {
+                                                    Text("Register", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = if (isEmailRegistering) PrimaryPurple else Color.Gray)
+                                                }
+                                            }
+
                                             OutlinedTextField(
                                                 value = emailInput,
                                                 onValueChange = { emailInput = it },
                                                 label = { Text("Enter Email Address") },
-                                                placeholder = { Text("e.g. eniola@yanga.live") },
+                                                placeholder = { Text(if (!viewModel.firebaseAuthEngine.isFirebaseAvailable()) "e.g. sandbox@yanga.live" else "e.g. eniola@yanga.live") },
                                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
                                                 modifier = Modifier.fillMaxWidth().testTag("email_input_field"),
                                                 shape = RoundedCornerShape(10.dp)
@@ -599,34 +648,59 @@ fun OnboardingScreen(
                                             OutlinedTextField(
                                                 value = passwordInput,
                                                 onValueChange = { passwordInput = it },
-                                                label = { Text("Enter Account Password") },
+                                                label = { Text(if (isEmailRegistering) "Choose Password (min 6 chars)" else "Enter Account Password") },
                                                 visualTransformation = PasswordVisualTransformation(),
                                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                                                 modifier = Modifier.fillMaxWidth(),
                                                 shape = RoundedCornerShape(10.dp)
                                             )
 
+                                            if (!viewModel.firebaseAuthEngine.isFirebaseAvailable()) {
+                                                Box(
+                                                    modifier = Modifier
+                                                        .background(BoldGold.copy(alpha = 0.08f), RoundedCornerShape(8.dp))
+                                                        .border(1.dp, BoldGold.copy(alpha = 0.2f), RoundedCornerShape(8.dp))
+                                                        .padding(8.dp)
+                                                ) {
+                                                    Text(
+                                                        text = "Sandbox details: Sign in with \"sandbox@yanga.live\" & password \"yanga2026\". Registration adds new custom profiles instantly.",
+                                                        fontSize = 10.sp,
+                                                        color = CharcoalBlack.copy(alpha = 0.7f),
+                                                        lineHeight = 14.sp
+                                                    )
+                                                }
+                                            }
+
                                             Button(
                                                 onClick = {
-                                                    if (emailInput.contains("@") && passwordInput.length >= 4) {
+                                                    if (emailInput.contains("@") && passwordInput.length >= 6) {
                                                         coroutineScope.launch {
                                                             chosenMethod = "Email"
                                                             isAuthenticating = true
-                                                            delay(1800)
-                                                            viewModel.setLoginDetails(emailInput, "Email")
-                                                            isAuthenticating = false
-                                                            currentStep = 6
+                                                            if (isEmailRegistering) {
+                                                                viewModel.firebaseEmailSignUp(emailInput, passwordInput) { success ->
+                                                                    isAuthenticating = false
+                                                                    if (success) {
+                                                                        currentStep = 6
+                                                                    }
+                                                                }
+                                                            } else {
+                                                                viewModel.firebaseEmailSignIn(emailInput, passwordInput) { success ->
+                                                                    isAuthenticating = false
+                                                                    if (success) {
+                                                                        currentStep = 6
+                                                                    }
+                                                                }
+                                                            }
                                                         }
-                                                    } else {
-                                                        // Fallback alert
                                                     }
                                                 },
-                                                enabled = emailInput.isNotBlank() && passwordInput.isNotBlank(),
+                                                enabled = emailInput.isNotBlank() && passwordInput.length >= 6,
                                                 colors = ButtonDefaults.buttonColors(containerColor = PrimaryPurple),
                                                 shape = RoundedCornerShape(10.dp),
                                                 modifier = Modifier.fillMaxWidth().height(46.dp).testTag("email_submit_button")
                                             ) {
-                                                Text("Login & Initialize profile 🔑", color = Color.White, fontWeight = FontWeight.Bold)
+                                                Text(if (isEmailRegistering) "Create Account 🚀" else "Login & Verify 🔑", color = Color.White, fontWeight = FontWeight.Bold)
                                             }
                                         }
                                     }
@@ -647,46 +721,134 @@ fun OnboardingScreen(
                                                 horizontalArrangement = Arrangement.SpaceBetween,
                                                 verticalAlignment = Alignment.CenterVertically
                                             ) {
-                                                Text("SMS Phone Verification", fontWeight = FontWeight.Bold, color = PrimaryPurple, fontSize = 13.sp)
+                                                Column {
+                                                    Text(
+                                                        text = if (smsVerificationId == null) "SMS Phone Verification" else "Verify Security OTP Code",
+                                                        fontWeight = FontWeight.Bold,
+                                                        color = PrimaryPurple,
+                                                        fontSize = 13.sp
+                                                    )
+                                                    Text(
+                                                        text = if (viewModel.firebaseAuthEngine.isFirebaseAvailable()) "Firebase SMS Gateway" else "Yanga Carrier Simulator",
+                                                        fontSize = 10.sp,
+                                                        color = if (viewModel.firebaseAuthEngine.isFirebaseAvailable()) BrandGreen else BoldGold,
+                                                        fontWeight = FontWeight.Bold
+                                                    )
+                                                }
                                                 Icon(
                                                     imageVector = Icons.Default.Close,
                                                     contentDescription = "Close Form",
                                                     tint = HeartRed,
                                                     modifier = Modifier
                                                         .size(18.dp)
-                                                        .clickable { activeFormType = null }
+                                                        .clickable { 
+                                                            activeFormType = null 
+                                                            smsVerificationId = null
+                                                        }
                                                 )
                                             }
 
-                                            OutlinedTextField(
-                                                value = phoneInput,
-                                                onValueChange = { phoneInput = it },
-                                                label = { Text("Enter Mobile Phone Number") },
-                                                placeholder = { Text("e.g. +234 803 123 4567") },
-                                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
-                                                modifier = Modifier.fillMaxWidth().testTag("phone_input_field"),
-                                                shape = RoundedCornerShape(10.dp)
-                                            )
+                                            if (smsVerificationId == null) {
+                                                OutlinedTextField(
+                                                    value = phoneInput,
+                                                    onValueChange = { phoneInput = it },
+                                                    label = { Text("Enter Mobile Phone Number") },
+                                                    placeholder = { Text("e.g. +234 803 123 4567") },
+                                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+                                                    modifier = Modifier.fillMaxWidth().testTag("phone_input_field"),
+                                                    shape = RoundedCornerShape(10.dp)
+                                                )
 
-                                            Button(
-                                                onClick = {
-                                                    if (phoneInput.length >= 7) {
-                                                        coroutineScope.launch {
-                                                            chosenMethod = "Phone"
-                                                            isAuthenticating = true
-                                                            delay(1800)
-                                                            viewModel.setLoginDetails(phoneInput, "Phone")
-                                                            isAuthenticating = false
-                                                            currentStep = 6
+                                                Button(
+                                                    onClick = {
+                                                        if (phoneInput.length >= 7) {
+                                                            coroutineScope.launch {
+                                                                chosenMethod = "Phone"
+                                                                isAuthenticating = true
+                                                                val activity = localContext as? Activity
+                                                                if (activity != null) {
+                                                                    viewModel.firebaseRequestOtp(
+                                                                        phoneNumber = phoneInput,
+                                                                        activity = activity,
+                                                                        onCodeSent = { verId ->
+                                                                            smsVerificationId = verId
+                                                                            isAuthenticating = false
+                                                                        },
+                                                                        onError = {
+                                                                            isAuthenticating = false
+                                                                        }
+                                                                    )
+                                                                } else {
+                                                                    // Fallback in case context cast fails
+                                                                    smsVerificationId = "SANDBOX-VERIFICATION-CODE-ID"
+                                                                    isAuthenticating = false
+                                                                }
+                                                            }
                                                         }
+                                                    },
+                                                    enabled = phoneInput.length >= 7,
+                                                    colors = ButtonDefaults.buttonColors(containerColor = PrimaryPurple),
+                                                    shape = RoundedCornerShape(10.dp),
+                                                    modifier = Modifier.fillMaxWidth().height(46.dp).testTag("phone_submit_button")
+                                                ) {
+                                                    Text("Request OTP Secure Code 📲", color = Color.White, fontWeight = FontWeight.Bold)
+                                                }
+                                            } else {
+                                                // OTP Code Field
+                                                Text(
+                                                    text = "We have sent a verification code to $phoneInput. Please check your SMS and paste the Code below.",
+                                                    fontSize = 11.sp,
+                                                    color = CharcoalBlack.copy(alpha = 0.7f),
+                                                    lineHeight = 15.sp
+                                                )
+
+                                                OutlinedTextField(
+                                                    value = otpSmsCode,
+                                                    onValueChange = { otpSmsCode = it },
+                                                    label = { Text("6-Digit Verification Code") },
+                                                    placeholder = { Text(if (!viewModel.firebaseAuthEngine.isFirebaseAvailable()) "Sandbox bypass: 123456" else "e.g. 583920") },
+                                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                                    modifier = Modifier.fillMaxWidth().testTag("otp_code_field"),
+                                                    shape = RoundedCornerShape(10.dp)
+                                                )
+
+                                                Row(
+                                                    modifier = Modifier.fillMaxWidth(),
+                                                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                                ) {
+                                                    OutlinedButton(
+                                                        onClick = { smsVerificationId = null },
+                                                        shape = RoundedCornerShape(10.dp),
+                                                        modifier = Modifier.weight(1f)
+                                                    ) {
+                                                        Text("Back", color = PrimaryPurple)
                                                     }
-                                                },
-                                                enabled = phoneInput.length >= 7,
-                                                colors = ButtonDefaults.buttonColors(containerColor = PrimaryPurple),
-                                                shape = RoundedCornerShape(10.dp),
-                                                modifier = Modifier.fillMaxWidth().height(46.dp).testTag("phone_submit_button")
-                                            ) {
-                                                Text("Request OTP Secure Code 📲", color = Color.White, fontWeight = FontWeight.Bold)
+
+                                                    Button(
+                                                        onClick = {
+                                                            if (otpSmsCode.length >= 6) {
+                                                                coroutineScope.launch {
+                                                                    isAuthenticating = true
+                                                                    viewModel.firebaseVerifyOtp(
+                                                                        verificationId = smsVerificationId!!,
+                                                                        smsCode = otpSmsCode
+                                                                    ) { success ->
+                                                                        isAuthenticating = false
+                                                                        if (success) {
+                                                                            currentStep = 6
+                                                                        }
+                                                                    }
+                                                                }
+                                                            }
+                                                        },
+                                                        enabled = otpSmsCode.length >= 6,
+                                                        colors = ButtonDefaults.buttonColors(containerColor = PrimaryPurple),
+                                                        shape = RoundedCornerShape(10.dp),
+                                                        modifier = Modifier.weight(1.5f).height(46.dp).testTag("otp_verify_button")
+                                                    ) {
+                                                        Text("Verify & Go 🔒", color = Color.White, fontWeight = FontWeight.Bold)
+                                                    }
+                                                }
                                             }
                                         }
                                     }

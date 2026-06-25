@@ -23,6 +23,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.BorderStroke
 import com.example.data.network.OAuthStatus
 import com.example.data.network.GoogleContact
 import com.example.ui.MainViewModel
@@ -37,6 +38,8 @@ import java.util.Locale
 @Composable
 fun WalletScreen(
     viewModel: MainViewModel,
+    onNavigateToSettings: () -> Unit,
+    onNavigateToDraw: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val balance by viewModel.walletBalance.collectAsState()
@@ -44,6 +47,7 @@ fun WalletScreen(
 
     var fundInputStr by remember { mutableStateOf("") }
     var securityAuditsEnabled by remember { mutableStateOf(false) }
+    var showPurseExplanation by remember { mutableStateOf(false) }
 
     LazyColumn(
         modifier = modifier
@@ -53,12 +57,137 @@ fun WalletScreen(
     ) {
         // --- Header ---
         item {
-            YangaHeader(
-                title = "Yanga Pay! 💳🔑",
-                subtitle = "Manage secure digital assets & ledger validations",
-                icon = Icons.Default.Shield,
-                onIconClick = { securityAuditsEnabled = !securityAuditsEnabled }
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    YangaHeader(
+                        title = "Yanga Profile & Pay! 👤💳",
+                        subtitle = "Manage your global Yanga handle & secure digital assets"
+                    )
+                }
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    IconButton(
+                        onClick = { securityAuditsEnabled = !securityAuditsEnabled },
+                        modifier = Modifier
+                            .size(40.dp)
+                            .background(if (securityAuditsEnabled) SecondaryYellow else Color(0xFFF3F4F6), CircleShape)
+                            .border(1.dp, PrimaryPurple.copy(alpha = 0.3f), CircleShape)
+                            .testTag("security_shield_btn")
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Shield,
+                            contentDescription = "Shield",
+                            tint = PrimaryPurple,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                    IconButton(
+                        onClick = onNavigateToSettings,
+                        modifier = Modifier
+                            .size(40.dp)
+                            .background(SecondaryYellow, CircleShape)
+                            .border(1.5.dp, PrimaryPurple, CircleShape)
+                            .testTag("go_to_settings_btn")
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Settings,
+                            contentDescription = "Settings",
+                            tint = PrimaryPurple,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                }
+            }
+        }
+
+        // --- Profile & Identity Settings ---
+        item {
+            val userNameState by viewModel.userName.collectAsState()
+            var localNameInput by remember(userNameState) { mutableStateOf(userNameState) }
+
+            YangaPlayfulCard(
+                backgroundColor = Color.White,
+                borderColor = PrimaryPurple,
+                borderWidth = 2.0,
+                modifier = Modifier.fillMaxWidth().testTag("profile_identity_card")
+            ) {
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(42.dp)
+                                .background(SecondaryYellow, CircleShape)
+                                .border(1.5.dp, PrimaryPurple, CircleShape),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text("👤", fontSize = 20.sp)
+                        }
+                        Column {
+                            Text(
+                                text = "Yanga Community Profile Settings",
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = PrimaryPurple
+                            )
+                            if (userNameState.isBlank()) {
+                                Text(
+                                    text = "⚠️ Please set your username below to broadcast vibes!",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFFD97706)
+                                )
+                            } else {
+                                Text(
+                                    text = "Your active handle: @$userNameState",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFF16A34A)
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    OutlinedTextField(
+                        value = localNameInput,
+                        onValueChange = { localNameInput = it.trim().replace(" ", "") },
+                        label = { Text("Choose Username Handle (no spaces)") },
+                        placeholder = { Text("e.g. tunde_dev") },
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = PrimaryPurple,
+                            focusedLabelColor = PrimaryPurple,
+                        ),
+                        singleLine = true,
+                        shape = RoundedCornerShape(10.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("username_input_field")
+                    )
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    YangaFunButton(
+                        text = "Save Profile Username",
+                        onClick = {
+                            if (localNameInput.isNotBlank()) {
+                                viewModel.updateUserName(localNameInput)
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        testTagStr = "save_username_btn"
+                    )
+                }
+            }
         }
 
         // --- Core Balance Display ---
@@ -116,35 +245,57 @@ fun WalletScreen(
 
         // --- Playful Coin Purse Coin System ---
         item {
-            val goldCoins = balance.toInt() / 100
-            val silverCoins = balance.toInt() % 100
+            val silverCoinsState by viewModel.silverCoins.collectAsState()
+            val goldCoinsState by viewModel.goldCoins.collectAsState()
+            
             Card(
                 shape = RoundedCornerShape(20.dp),
                 colors = CardDefaults.cardColors(containerColor = Color(0xFFFDFBF7)), // Pale yellow background
                 modifier = Modifier
                     .fillMaxWidth()
-                    .border(2.dp, PrimaryPurple.copy(alpha = 0.3f), RoundedCornerShape(20.dp))
+                    .border(2.5.dp, PrimaryPurple, RoundedCornerShape(20.dp))
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        modifier = Modifier.fillMaxWidth()
                     ) {
-                        Text(
-                            text = "🎒 Yanga Coin Purse System",
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.ExtraBold,
-                            color = PrimaryPurple
-                        )
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Text(
+                                text = "🎒 Yanga Coin Purse System",
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = PrimaryPurple
+                            )
+                            IconButton(
+                                onClick = { showPurseExplanation = true },
+                                modifier = Modifier
+                                    .size(24.dp)
+                                    .testTag("purse_info_button")
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Info,
+                                    contentDescription = "Purse Information",
+                                    tint = PrimaryPurple,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
+                        }
+                        
                         Box(
                             modifier = Modifier
                                 .background(Color(0xFFFEF3C7), RoundedCornerShape(6.dp))
                                 .padding(horizontal = 6.dp, vertical = 2.dp)
+                                .border(1.dp, Color(0xFFD97706), RoundedCornerShape(6.dp))
                         ) {
                             Text(
                                 text = "1 GP = 100 SP",
                                 fontSize = 9.sp,
-                                fontWeight = FontWeight.Bold,
+                                fontWeight = FontWeight.Black,
                                 color = Color(0xFFD97706)
                             )
                         }
@@ -162,7 +313,7 @@ fun WalletScreen(
                             colors = CardDefaults.cardColors(containerColor = Color(0xFFFFFBEB)),
                             modifier = Modifier
                                 .weight(1f)
-                                .border(1.dp, Color(0xFFFCD34D), RoundedCornerShape(12.dp))
+                                .border(1.5.dp, Color(0xFFFCD34D), RoundedCornerShape(12.dp))
                         ) {
                             Column(
                                 modifier = Modifier
@@ -183,10 +334,11 @@ fun WalletScreen(
                                 }
                                 Spacer(modifier = Modifier.height(4.dp))
                                 Text(
-                                    text = "$goldCoins GP",
+                                    text = "$goldCoinsState GP",
                                     fontSize = 18.sp,
                                     fontWeight = FontWeight.Black,
-                                    color = Color(0xFFB45309)
+                                    color = Color(0xFFB45309),
+                                    modifier = Modifier.testTag("wallet_gold_coins_display")
                                 )
                                 Text(
                                     text = "Gold Pieces",
@@ -203,7 +355,7 @@ fun WalletScreen(
                             colors = CardDefaults.cardColors(containerColor = Color(0xFFF9FAFB)),
                             modifier = Modifier
                                 .weight(1f)
-                                .border(1.dp, Color(0xFFE5E7EB), RoundedCornerShape(12.dp))
+                                .border(1.5.dp, Color(0xFFE5E7EB), RoundedCornerShape(12.dp))
                         ) {
                             Column(
                                 modifier = Modifier
@@ -225,10 +377,11 @@ fun WalletScreen(
                                 }
                                 Spacer(modifier = Modifier.height(4.dp))
                                 Text(
-                                    text = "$silverCoins SP",
+                                    text = "$silverCoinsState SP",
                                     fontSize = 18.sp,
                                     fontWeight = FontWeight.Black,
-                                    color = CharcoalBlack
+                                    color = CharcoalBlack,
+                                    modifier = Modifier.testTag("wallet_silver_coins_display")
                                 )
                                 Text(
                                     text = "Silver Pieces",
@@ -240,13 +393,43 @@ fun WalletScreen(
                         }
                     }
                     
-                    Spacer(modifier = Modifier.height(10.dp))
-                    Text(
-                        text = "Every transaction converts seamlessly: your balance of ₦${String.format("%,.2f", balance)} is equivalent to $goldCoins Gold and $silverCoins Silver coins.",
-                        fontSize = 10.sp,
-                        color = CharcoalBlack.copy(alpha = 0.6f),
-                        lineHeight = 14.sp
-                    )
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    // Buttons
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        // Convert Button
+                        Button(
+                            onClick = { viewModel.convertSilverToGold() },
+                            colors = ButtonDefaults.buttonColors(containerColor = PrimaryPurple),
+                            shape = RoundedCornerShape(10.dp),
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(38.dp)
+                                .testTag("convert_silver_gold_btn"),
+                            enabled = silverCoinsState >= 100,
+                            contentPadding = PaddingValues(0.dp)
+                        ) {
+                            Text("Convert SP to GP 🪙", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        }
+
+                        // Draw Button
+                        Button(
+                            onClick = onNavigateToDraw,
+                            colors = ButtonDefaults.buttonColors(containerColor = SecondaryYellow),
+                            shape = RoundedCornerShape(10.dp),
+                            border = BorderStroke(1.dp, PrimaryPurple),
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(38.dp)
+                                .testTag("go_to_draw_btn"),
+                            contentPadding = PaddingValues(0.dp)
+                        ) {
+                            Text("Enter Draw 🎟️", fontSize = 11.sp, fontWeight = FontWeight.Black, color = PrimaryPurple)
+                        }
+                    }
                 }
             }
         }
@@ -333,25 +516,105 @@ fun WalletScreen(
         // --- Ledger Audit Security toggle info notice ---
         if (securityAuditsEnabled) {
             item {
+                val auditReport by viewModel.walletAuditReport.collectAsState()
                 Card(
-                    colors = CardDefaults.cardColors(containerColor = Color(0xFFEFF6FF)),
+                    colors = CardDefaults.cardColors(
+                        containerColor = if (auditReport.isSystemAuthentic) Color(0xFFF0FDF4) else Color(0xFFFEF2F2)
+                    ),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .border(1.5.dp, PrimaryPurple, RoundedCornerShape(12.dp))
-                ) {
-                    Column(modifier = Modifier.padding(12.dp)) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(imageVector = Icons.Default.Info, contentDescription = "Security audit", tint = PrimaryPurple)
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(text = "CRYPTOGRAPHIC AUDIT SYSTEM", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = PrimaryPurple)
-                        }
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(
-                            text = "Every transaction is stamped with an in-app HMAC SHA-256 verification hash utilizing our custom salt keys. This prevents ledger tampering and guarantees secure local transaction loops.",
-                            fontSize = 11.sp,
-                            color = CharcoalBlack.copy(alpha = 0.7f),
-                            lineHeight = 15.sp
+                        .border(
+                            2.dp, 
+                            if (auditReport.isSystemAuthentic) Color(0xFF22C55E) else Color(0xFFEF4444), 
+                            RoundedCornerShape(16.dp)
                         )
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    imageVector = if (auditReport.isSystemAuthentic) Icons.Default.CheckCircle else Icons.Default.Warning, 
+                                    contentDescription = "Security audit", 
+                                    tint = if (auditReport.isSystemAuthentic) Color(0xFF16A34A) else Color(0xFFDC2626)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = "CRYPTOGRAPHIC CORE AUDIT", 
+                                    fontSize = 12.sp, 
+                                    fontWeight = FontWeight.ExtraBold, 
+                                    color = if (auditReport.isSystemAuthentic) Color(0xFF15803D) else Color(0xFF991B1B)
+                                )
+                            }
+                            
+                            Box(
+                                modifier = Modifier
+                                    .background(
+                                        if (auditReport.isSystemAuthentic) Color(0xFFDCFCE7) else Color(0xFFFEE2E2),
+                                        RoundedCornerShape(8.dp)
+                                    )
+                                    .padding(horizontal = 8.dp, vertical = 4.dp)
+                            ) {
+                                Text(
+                                    text = if (auditReport.isSystemAuthentic) "LEDGER OK ✓" else "TAMPERED ⚠️",
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Black,
+                                    color = if (auditReport.isSystemAuthentic) Color(0xFF15803D) else Color(0xFF991B1B)
+                                )
+                            }
+                        }
+                        
+                        Spacer(modifier = Modifier.height(10.dp))
+                        Text(
+                            text = "A core structural validation scan has verified all ${auditReport.totalTransactionsCount} logged transactions following modular OOP architecture rules using HMAC-SHA256 checksum tags.",
+                            fontSize = 11.sp,
+                            color = CharcoalBlack.copy(alpha = 0.8f),
+                            lineHeight = 15.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                        
+                        Spacer(modifier = Modifier.height(8.dp))
+                        
+                        Divider(color = (if (auditReport.isSystemAuthentic) Color(0xFF22C55E) else Color(0xFFEF4444)).copy(alpha = 0.15f))
+                        
+                        Spacer(modifier = Modifier.height(8.dp))
+                        
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Column {
+                                Text(
+                                    text = "LEDGER HEALTH STATUS",
+                                    fontSize = 8.sp,
+                                    color = Color.Gray,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    text = if (auditReport.isSystemAuthentic) "100.0% Integrity Intact" else "INTEGRITY COMPROMISED",
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = if (auditReport.isSystemAuthentic) Color(0xFF16A34A) else Color(0xFFDC2626)
+                                )
+                            }
+                            Column(horizontalAlignment = Alignment.End) {
+                                Text(
+                                    text = "ANOMALIES FOUND",
+                                    fontSize = 8.sp,
+                                    color = Color.Gray,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    text = "${auditReport.anomalyCount} violations",
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = if (auditReport.anomalyCount == 0) Color(0xFF16A34A) else Color(0xFFDC2626)
+                                )
+                            }
+                        }
                     }
                 }
             }
@@ -508,6 +771,91 @@ fun TransactionRow(
                         fontWeight = FontWeight.Bold,
                         color = PrimaryPurple
                     )
+                }
+            }
+        }
+    }
+
+    if (showPurseExplanation) {
+        androidx.compose.ui.window.Dialog(
+            onDismissRequest = { showPurseExplanation = false },
+            properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)
+        ) {
+            Card(
+                shape = RoundedCornerShape(24.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.White),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp)
+                    .border(3.dp, PrimaryPurple, RoundedCornerShape(24.dp))
+                    .testTag("purse_explanation_dialog")
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(20.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "ℹ️ Purse Explanation",
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Black,
+                            color = PrimaryPurple
+                        )
+                        IconButton(
+                            onClick = { showPurseExplanation = false },
+                            modifier = Modifier.size(32.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = "Close",
+                                tint = PrimaryPurple
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    Text(
+                        text = "For the Yanga Coin Purse system, each time you make a transaction or buy something off the app, you get silver pieces! Here is how it works:",
+                        fontSize = 12.sp,
+                        color = CharcoalBlack,
+                        lineHeight = 16.sp
+                    )
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    listOf(
+                        "🛍️ Purchases" to "For each item you purchase in a transaction, you earn exactly 1 Silver coin. Buying 5 items earns you 5 Silver pieces!",
+                        "🤝 Freelancing status" to "Citizens registered as active freelancers gain silver coins automatically from superapp activity.",
+                        "⭐ Review submissions" to "Submitting or receiving a 5-star review rewards you with +5 Silver Pieces!",
+                        "🔥 Vibe checks" to "If any post you publish on 'Let's Share Vibes' board hits 100+ likes, you gain +1 Silver coin!",
+                        "🪙 Gold Upgrades" to "You can convert 100 Silver Pieces to 1 Gold Piece seamlessly.",
+                        "🎟️ Draw entries" to "A Gold Piece can be traded directly for tickets to enter the Golden Draw where you can win incredible prizes (like Suzuki Delivery Motorcycles or ₦50,000 cash rewards)!"
+                    ).forEach { (title, desc) ->
+                        Column(modifier = Modifier.padding(vertical = 4.dp)) {
+                            Text(title, fontSize = 11.sp, fontWeight = FontWeight.Black, color = PrimaryPurple)
+                            Text(desc, fontSize = 11.sp, color = CharcoalBlack.copy(alpha = 0.7f), lineHeight = 14.sp)
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    Button(
+                        onClick = { showPurseExplanation = false },
+                        colors = ButtonDefaults.buttonColors(containerColor = PrimaryPurple),
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(44.dp)
+                            .testTag("close_purse_info_dialog_btn")
+                    ) {
+                        Text("Got It! 👍", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                    }
                 }
             }
         }

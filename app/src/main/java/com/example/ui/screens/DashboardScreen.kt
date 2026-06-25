@@ -36,6 +36,8 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import com.example.data.network.OAuthStatus
 import com.example.data.network.GoogleContact
+import androidx.compose.foundation.lazy.rememberLazyListState
+import kotlinx.coroutines.delay
 
 
 @Composable
@@ -59,22 +61,36 @@ fun DashboardScreen(
     var addressInput by remember { mutableStateOf("") }
     
     var showHowItWorks by remember { mutableStateOf(false) }
+    var selectedPromoForPage by remember { mutableStateOf<String?>(null) }
     
     // Yanga Ride Interactive state
     var selectedVehicle by remember { mutableStateOf("Bike") } // Bike, Keke, Cab
     var bookingStatusMessage by remember { mutableStateOf<String?>(null) }
     var rsvpSuccessMessage by remember { mutableStateOf<String?>(null) }
 
-    // Lagos Ticker Market price items
-    val liveTickerPrices = listOf(
-        TickerItem("🍠 Yam", "₦1,000", true),
-        TickerItem("🍌 Plantain", "₦4,000", false),
-        TickerItem("🌾 Rice", "₦60,000", true),
-        TickerItem("🫘 Beans", "₦120,000", true),
-        TickerItem("🧅 Onions", "₦5,000", false),
-        TickerItem("🥔 Potatoes", "₦5,000", true),
-        TickerItem("🧱 Cement", "₦11,000", false)
+    // Hot Promos & Coupon Deals
+    val promosAndCoupons = listOf(
+        "🎟️ Promo: 25% DISCOUNT on 'Lagos Vibes Concert' event limit slots!",
+        "🏷️ Coupon 'YANGAOFF' for ₦1,500 off at Choice Supermarket!",
+        "🎁 Deal: FREE local drinks coming up this Friday Fiesta!",
+        "🍕 Promo: Buy 1 Get 1 FREE on all sizes at Pizza Corner!",
+        "🍒 Coupon: Get 20% discount on organic fresh fruits today!",
+        "🎫 Flash Sale: 40% OFF all VIP Event table reservations!"
     )
+
+    val promoListState = rememberLazyListState()
+    LaunchedEffect(Unit) {
+        var index = 0
+        while (true) {
+            delay(3500)
+            index = (index + 1) % promosAndCoupons.size
+            try {
+                promoListState.animateScrollToItem(index)
+            } catch (e: Exception) {
+                // Ignore pre-layout scroll requests securely
+            }
+        }
+    }
 
     LazyColumn(
         modifier = modifier
@@ -83,7 +99,7 @@ fun DashboardScreen(
         verticalArrangement = Arrangement.spacedBy(20.dp),
         contentPadding = PaddingValues(bottom = 32.dp)
     ) {
-        // --- 1. LIVE LAGOON MARKET PRICE MARQUEE ---
+        // --- 1. LIVE LAGOON MARKET DEALS & PROMOS ---
         item {
             Card(
                 shape = RoundedCornerShape(0.dp),
@@ -103,7 +119,7 @@ fun DashboardScreen(
                                 .padding(horizontal = 6.dp, vertical = 2.dp)
                         ) {
                             Text(
-                                text = "LIVE PRICES",
+                                text = "HOT PROMOS 🔥",
                                 fontSize = 8.sp,
                                 fontWeight = FontWeight.Black,
                                 color = Color.White
@@ -111,30 +127,26 @@ fun DashboardScreen(
                         }
                         Spacer(modifier = Modifier.width(8.dp))
                         LazyRow(
+                            state = promoListState,
                             horizontalArrangement = Arrangement.spacedBy(16.dp),
                             modifier = Modifier.weight(1f)
                         ) {
-                            items(liveTickerPrices, key = { it.name }) { item ->
+                            items(promosAndCoupons) { promo ->
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                    modifier = Modifier
+                                        .background(Color(0xFFFEF3C7), RoundedCornerShape(12.dp))
+                                        .border(1.5.dp, Color(0xFFD97706), RoundedCornerShape(12.dp))
+                                        .clickable { selectedPromoForPage = promo }
+                                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                                        .testTag("promo_item_${promo.take(20).replace(" ", "_")}")
                                 ) {
                                     Text(
-                                        text = item.name,
-                                        fontSize = 11.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = CharcoalBlack
-                                    )
-                                    Text(
-                                        text = item.price,
-                                        fontSize = 11.sp,
-                                        fontWeight = FontWeight.ExtraBold,
-                                        color = if (item.isUp) Color(0xFF16A34A) else Color(0xFFDC2626)
-                                    )
-                                    Text(
-                                        text = if (item.isUp) "▲" else "▼",
-                                        fontSize = 8.sp,
-                                        color = if (item.isUp) Color(0xFF16A34A) else Color(0xFFDC2626)
+                                        text = promo,
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Black,
+                                        color = Color(0xFF92400E)
                                     )
                                 }
                             }
@@ -166,31 +178,6 @@ fun DashboardScreen(
                         fontWeight = FontWeight.ExtraBold,
                         color = Color(0xFFF97316)
                     )
-                    
-                    // Small shaped-off rectangle for the wallet amount
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier
-                            .background(SecondaryYellow, RoundedCornerShape(12.dp))
-                            .border(1.5.dp, PrimaryPurple, RoundedCornerShape(12.dp))
-                            .clickable { onNavigate("wallet") }
-                            .padding(horizontal = 10.dp, vertical = 5.dp)
-                            .testTag("home_header_wallet_widget")
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.AccountBalanceWallet,
-                            contentDescription = "Wallet Icon",
-                            tint = PrimaryPurple,
-                            modifier = Modifier.size(13.dp)
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                            text = "₦${String.format("%,.2f", balance)}",
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Black,
-                            color = CharcoalBlack
-                        )
-                    }
                 }
                 // Main Header Title with high-contrast playful typography
                 Text(
@@ -370,14 +357,20 @@ fun DashboardScreen(
                             title = "Restaurants",
                             modifier = Modifier
                                 .weight(1f)
-                                .clickable { onNavigate("market") }
+                                .clickable {
+                                    viewModel.setDashboardMarketFilter("None")
+                                    onNavigate("market")
+                                }
                         )
                         CategoryGridCard(
                             emoji = "🛒",
                             title = "Supermarkets",
                             modifier = Modifier
                                 .weight(1f)
-                                .clickable { onNavigate("market") }
+                                .clickable {
+                                    viewModel.setDashboardMarketFilter("Supermarket")
+                                    onNavigate("market")
+                                }
                         )
                         CategoryGridCard(
                             emoji = "💊",
@@ -396,7 +389,10 @@ fun DashboardScreen(
                             title = "Bakeries",
                             modifier = Modifier
                                 .weight(1f)
-                                .clickable { onNavigate("market") }
+                                .clickable {
+                                    viewModel.setDashboardMarketFilter("Bakery")
+                                    onNavigate("market")
+                                }
                         )
                         CategoryGridCard(
                             emoji = "🏥",
@@ -417,63 +413,122 @@ fun DashboardScreen(
             }
         }
 
-        // --- 5. LETSSHARE VIBES COMMUNITY DIRECTORY ---
+        // --- 5. MARKET INSIGHT AND VIBES ---
         item {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp)
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+            val quotesLib by viewModel.quotesLibrary.collectAsState()
+            val availableCategories = listOf("All", "Fashion", "Electronics", "Groceries", "Business", "Motivation")
+            
+            Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
+                Text(
+                    text = "Market Insight and Vibes 💡",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Black,
+                    color = PrimaryPurple
+                )
+                Text(
+                    text = "Dynamic merchant professional thoughts served directly by superapp community",
+                    fontSize = 12.sp,
+                    color = CharcoalBlack.copy(alpha = 0.6f),
+                    fontWeight = FontWeight.Medium
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // Filter chip row
+                LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 4.dp)
                 ) {
-                    Column {
-                        Text(
-                            text = "LetsShare Vibes 🎒",
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.Black,
-                            color = PrimaryPurple
-                        )
-                        Text(
-                            text = "Share, rent or buy from people around you",
-                            fontSize = 12.sp,
-                            color = CharcoalBlack.copy(alpha = 0.6f),
-                            fontWeight = FontWeight.Bold
+                    items(availableCategories, key = { it }) { cat ->
+                        val isSelected = (quotesLib?.category ?: "All").equals(cat, ignoreCase = true)
+                        FilterChip(
+                            selected = isSelected,
+                            onClick = { viewModel.fetchQuotesByCategory(cat) },
+                            label = { Text(cat, fontWeight = FontWeight.Bold, fontSize = 11.sp) },
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = PrimaryPurple,
+                                selectedLabelColor = Color.White,
+                                containerColor = SecondaryYellow.copy(alpha = 0.25f),
+                                labelColor = PrimaryPurple
+                            ),
+                            modifier = Modifier.testTag("quote_filter_chip_$cat")
                         )
                     }
-                    Text(
-                        text = "See all",
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Black,
-                        color = PrimaryPurple,
-                        modifier = Modifier
-                            .clickable { onNavigate("vibes") }
-                            .padding(4.dp)
-                    )
                 }
+                
+                Spacer(modifier = Modifier.height(10.dp))
 
-                Spacer(modifier = Modifier.height(12.dp))
-
-                // Grid reflecting foodstuffs & groceries only
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    CategoryGridCard(
-                        emoji = "🌾",
-                        title = "Foodstuffs",
-                        modifier = Modifier
-                            .weight(1f)
-                            .clickable { onNavigate("vibes") }
-                    )
-                    CategoryGridCard(
-                        emoji = "🧺",
-                        title = "Groceries",
-                        modifier = Modifier
-                            .weight(1f)
-                            .clickable { onNavigate("vibes") }
+                // Scrollable Quotes List
+                quotesLib?.let { library ->
+                    if (library.quotes.isEmpty()) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(120.dp)
+                                .background(WarmCardWhite, RoundedCornerShape(12.dp))
+                                .border(1.5.dp, PrimaryPurple.copy(alpha = 0.15f), RoundedCornerShape(12.dp)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text("No quotes found for this category.", fontSize = 12.sp, color = Color.Gray)
+                        }
+                    } else {
+                        LazyRow(
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            items(library.quotes, key = { it.id }) { quote ->
+                                YangaPlayfulCard(
+                                    backgroundColor = Color.White,
+                                    borderColor = PrimaryPurple,
+                                    borderWidth = 2.0,
+                                    modifier = Modifier
+                                        .width(280.dp)
+                                        .height(130.dp)
+                                        .testTag("quote_card_${quote.id}")
+                                ) {
+                                    Column(
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .padding(12.dp),
+                                        verticalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        Text(
+                                            text = "“${quote.text}”",
+                                            fontSize = 12.sp,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = CharcoalBlack,
+                                            maxLines = 3
+                                        )
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Text(
+                                                text = "— ${quote.author}",
+                                                fontSize = 10.sp,
+                                                fontWeight = FontWeight.Black,
+                                                color = PrimaryPurple
+                                            )
+                                            YangaBadge(
+                                                text = quote.category,
+                                                containerColor = SecondaryYellow,
+                                                contentColor = PrimaryPurple
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = "GraphQL API connection established: Loaded ${library.totalCount} vibes successfully",
+                        fontSize = 10.sp,
+                        color = CharcoalBlack.copy(alpha = 0.5f),
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(start = 4.dp)
                     )
                 }
             }
@@ -753,131 +808,9 @@ fun DashboardScreen(
             }
         }
 
-        // --- 9. DYNAMIC VIBES & DISCOVERY QUOTES ---
-        item {
-            val quotesLib by viewModel.quotesLibrary.collectAsState()
-            val availableCategories = listOf("All", "Fashion", "Electronics", "Groceries", "Business", "Motivation")
-            
-            Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
-                Text(
-                    text = "Market Insights & Vibes 💡",
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Black,
-                    color = CharcoalBlack
-                )
-                Text(
-                    text = "Dynamic merchant professional thoughts served directly by superapp community",
-                    fontSize = 12.sp,
-                    color = CharcoalBlack.copy(alpha = 0.6f),
-                    fontWeight = FontWeight.Medium
-                )
-                Spacer(modifier = Modifier.height(8.dp))
 
-                // Filter chip row
-                LazyRow(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 4.dp)
-                ) {
-                    items(availableCategories, key = { it }) { cat ->
-                        val isSelected = (quotesLib?.category ?: "All").equals(cat, ignoreCase = true)
-                        FilterChip(
-                            selected = isSelected,
-                            onClick = { viewModel.fetchQuotesByCategory(cat) },
-                            label = { Text(cat, fontWeight = FontWeight.Bold, fontSize = 11.sp) },
-                            colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = PrimaryPurple,
-                                selectedLabelColor = Color.White,
-                                containerColor = SecondaryYellow.copy(alpha = 0.25f),
-                                labelColor = PrimaryPurple
-                            ),
-                            modifier = Modifier.testTag("quote_filter_chip_$cat")
-                        )
-                    }
-                }
-                
-                Spacer(modifier = Modifier.height(10.dp))
 
-                // Scrollable Quotes List
-                quotesLib?.let { library ->
-                    if (library.quotes.isEmpty()) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(120.dp)
-                                .background(WarmCardWhite, RoundedCornerShape(12.dp))
-                                .border(1.5.dp, PrimaryPurple.copy(alpha = 0.15f), RoundedCornerShape(12.dp)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text("No quotes found for this category.", fontSize = 12.sp, color = Color.Gray)
-                        }
-                    } else {
-                        LazyRow(
-                            horizontalArrangement = Arrangement.spacedBy(12.dp),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            items(library.quotes, key = { it.id }) { quote ->
-                                YangaPlayfulCard(
-                                    backgroundColor = Color.White,
-                                    borderColor = PrimaryPurple,
-                                    borderWidth = 2.0,
-                                    modifier = Modifier
-                                        .width(280.dp)
-                                        .height(130.dp)
-                                        .testTag("quote_card_${quote.id}")
-                                ) {
-                                    Column(
-                                        modifier = Modifier
-                                            .fillMaxSize()
-                                            .padding(12.dp),
-                                        verticalArrangement = Arrangement.SpaceBetween
-                                    ) {
-                                        Text(
-                                            text = "“${quote.text}”",
-                                            fontSize = 12.sp,
-                                            fontWeight = FontWeight.SemiBold,
-                                            color = CharcoalBlack,
-                                            maxLines = 3
-                                        )
-                                        Row(
-                                            modifier = Modifier.fillMaxWidth(),
-                                            horizontalArrangement = Arrangement.SpaceBetween,
-                                            verticalAlignment = Alignment.CenterVertically
-                                        ) {
-                                            Text(
-                                                text = "— ${quote.author}",
-                                                fontSize = 10.sp,
-                                                fontWeight = FontWeight.Black,
-                                                color = PrimaryPurple
-                                            )
-                                            YangaBadge(
-                                                text = quote.category,
-                                                containerColor = SecondaryYellow,
-                                                contentColor = PrimaryPurple
-                                            )
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = "GraphQL API connection established: Loaded ${library.totalCount} vibes successfully",
-                        fontSize = 10.sp,
-                        color = CharcoalBlack.copy(alpha = 0.5f),
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(start = 4.dp)
-                    )
-                }
-            }
-        }
 
-        // --- 10. CSS KEYFRAME ANIMATION DESIGNER & SIMULATOR ---
-        item {
-            CSSKeyframeAnimationSimulatorSection()
-        }
     }
 
 
@@ -1007,6 +940,170 @@ fun DashboardScreen(
                         modifier = Modifier.fillMaxWidth().height(48.dp)
                     ) {
                         Text("Awesome, Got It!", fontWeight = FontWeight.Black, color = Color.White)
+                    }
+                }
+            }
+        }
+    }
+
+    // --- Promo Page Dialog / Overlay ---
+    if (selectedPromoForPage != null) {
+        val promo = selectedPromoForPage!!
+        androidx.compose.ui.window.Dialog(
+            onDismissRequest = { selectedPromoForPage = null },
+            properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)
+        ) {
+            Card(
+                shape = RoundedCornerShape(24.dp),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFFFAF5FF)), // Pale purple background
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp)
+                    .border(3.dp, PrimaryPurple, RoundedCornerShape(24.dp))
+                    .testTag("promo_details_dialog")
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(18.dp)
+                ) {
+                    // Header Row
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "🎟️ Yanga Hot Deal!",
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Black,
+                            color = PrimaryPurple
+                        )
+                        IconButton(
+                            onClick = { selectedPromoForPage = null },
+                            modifier = Modifier.size(36.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = "Close Promo Details",
+                                tint = PrimaryPurple,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    // Graphic Card representation
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(130.dp)
+                            .background(SecondaryYellow.copy(alpha = 0.25f), RoundedCornerShape(16.dp))
+                            .border(2.dp, PrimaryPurple, RoundedCornerShape(16.dp)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = when {
+                                promo.contains("Concert", ignoreCase = true) -> "🎸🔥"
+                                promo.contains("Choice Supermarket", ignoreCase = true) -> "🛒🎒"
+                                promo.contains("Friday Fiesta", ignoreCase = true) -> "🍹🎉"
+                                promo.contains("Pizza Corner", ignoreCase = true) -> "🍕😋"
+                                promo.contains("organic fresh fruits", ignoreCase = true) -> "🍒🍓"
+                                else -> "🎫⚡"
+                            },
+                            fontSize = 56.sp
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    Text(
+                        text = promo,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = CharcoalBlack,
+                        textAlign = TextAlign.Center,
+                        lineHeight = 18.sp,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    val couponCode = when {
+                        promo.contains("Concert", ignoreCase = true) -> "VIBES25"
+                        promo.contains("Choice Supermarket", ignoreCase = true) -> "YANGAOFF"
+                        promo.contains("Friday Fiesta", ignoreCase = true) -> "FIESTA"
+                        promo.contains("Pizza Corner", ignoreCase = true) -> "PIZZA1G1"
+                        promo.contains("organic fresh fruits", ignoreCase = true) -> "FRUITY"
+                        else -> "YNG40"
+                    }
+
+                    // Coupon claim panel
+                    Card(
+                        colors = CardDefaults.cardColors(containerColor = Color.White),
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .border(1.5.dp, PrimaryPurple.copy(alpha = 0.3f), RoundedCornerShape(12.dp))
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(12.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column {
+                                Text("COUPON CODE", fontSize = 8.sp, fontWeight = FontWeight.Bold, color = Color.Gray)
+                                Text(couponCode, fontSize = 16.sp, fontWeight = FontWeight.Black, color = PrimaryPurple)
+                            }
+                            Button(
+                                onClick = {
+                                    viewModel.postSuccess("Coupon '$couponCode' claimed successfully! Applied to your next checkout. 💜")
+                                },
+                                colors = ButtonDefaults.buttonColors(containerColor = SecondaryYellow),
+                                shape = RoundedCornerShape(8.dp),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, PrimaryPurple),
+                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+                                modifier = Modifier.height(32.dp)
+                            ) {
+                                Text("Claim", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = PrimaryPurple)
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    Text(
+                        text = "Exclusively on Yanga Market. Limited slots are available for active Yanga citizens. Terms and conditions apply.",
+                        fontSize = 9.sp,
+                        color = CharcoalBlack.copy(alpha = 0.5f),
+                        textAlign = TextAlign.Center,
+                        lineHeight = 12.sp,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    val targetRoute = when {
+                        promo.contains("Concert", ignoreCase = true) || promo.contains("Event", ignoreCase = true) -> "events"
+                        else -> "market"
+                    }
+                    val buttonLabel = if (targetRoute == "events") "Go to Events Page 🎸" else "Go to Market Page 🛒"
+
+                    Button(
+                        onClick = {
+                            selectedPromoForPage = null
+                            onNavigate(targetRoute)
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(46.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = PrimaryPurple),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Text(buttonLabel, fontSize = 13.sp, fontWeight = FontWeight.Black, color = Color.White)
                     }
                 }
             }

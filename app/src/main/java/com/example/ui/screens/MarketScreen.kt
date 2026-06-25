@@ -33,6 +33,9 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.foundation.Image
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.layout.ContentScale
 
 @OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
@@ -46,7 +49,90 @@ fun MarketScreen(
     val restaurants by viewModel.restaurants.collectAsState()
     val cartItems by viewModel.cartItems.collectAsState()
 
+    // Observe home screen deep link filter state
+    val deepFilter by viewModel.dashboardMarketFilter.collectAsState()
+
     var selectedTab by remember { mutableStateOf(0) } // 0: Food & Fruits, 1: Retail, 2: Dine-In
+
+    // Sorter / Filter system state
+    var sortOption by remember { mutableStateOf("Default") } // "Default", "Closest", "PriceAsc", "PriceDesc"
+    var viewModeOption by remember { mutableStateOf("All") } // "All", "Restaurant", "Fruit"
+    var filterClosestOnly by remember { mutableStateOf(false) }
+
+    // Synchronize deep links from the Dashboard/Home screen
+    androidx.compose.runtime.LaunchedEffect(deepFilter) {
+        when (deepFilter) {
+            "Supermarket" -> {
+                selectedTab = 1 // Retail Shops tab
+            }
+            "Bakery" -> {
+                selectedTab = 0 // Eats & Fruits tab
+                viewModeOption = "Restaurant" // Show bakeries/restaurants
+            }
+            else -> {
+                // Keep existing choices
+            }
+        }
+    }
+
+    // Detailed custom sub-page state for selected restaurant
+    var selectedRestaurantForMenu by remember { mutableStateOf<com.example.domain.model.Restaurant?>(null) }
+
+    // Sorted / Filtered Collections dynamically computed
+    val sortedRestaurants = remember(restaurants, sortOption) {
+        when (sortOption) {
+            "Closest" -> restaurants.sortedBy { it.distanceKm }
+            "PriceAsc" -> restaurants.sortedBy { it.tablePrice }
+            "PriceDesc" -> restaurants.sortedByDescending { it.tablePrice }
+            else -> restaurants
+        }
+    }
+
+    val eatsRestaurants = remember(restaurants, sortOption, filterClosestOnly, deepFilter) {
+        var list = restaurants
+        if (deepFilter == "Bakery") {
+            list = list.filter { it.cuisine.contains("Bakery", ignoreCase = true) }
+        }
+        if (filterClosestOnly) {
+            list = list.filter { it.distanceKm <= 1.5 }
+        }
+        when (sortOption) {
+            "PriceAsc" -> list.sortedBy { r -> r.meals.minOfOrNull { it.price } ?: r.tablePrice }
+            "PriceDesc" -> list.sortedByDescending { r -> r.meals.maxOfOrNull { it.price } ?: r.tablePrice }
+            else -> list
+        }
+    }
+
+    // Eats foods should only be organic fresh fruits as requested! "All these meals and snacks, it should only be fruits under that section."
+    val eatsFoods = remember(fruits, sortOption) {
+        val list = fruits
+        when (sortOption) {
+            "PriceAsc" -> list.sortedBy { it.price }
+            "PriceDesc" -> list.sortedByDescending { it.price }
+            else -> list
+        }
+    }
+
+    val sortedFruits = remember(fruits, sortOption) {
+        when (sortOption) {
+            "PriceAsc" -> fruits.sortedBy { it.price }
+            "PriceDesc" -> fruits.sortedByDescending { it.price }
+            else -> fruits
+        }
+    }
+
+    val sortedShops = remember(shops, sortOption, deepFilter) {
+        var list = shops
+        if (deepFilter == "Supermarket") {
+            list = list.filter { it.specialty.contains("Supermarket", ignoreCase = true) }
+        }
+        when (sortOption) {
+            "Closest" -> list.sortedBy { it.distanceKm }
+            "PriceAsc" -> list.sortedBy { s -> s.items.minOfOrNull { it.price } ?: 0.0 }
+            "PriceDesc" -> list.sortedByDescending { s -> s.items.maxOfOrNull { it.price } ?: 0.0 }
+            else -> list
+        }
+    }
 
     // Cart Sheet State
     var showCartDialog by remember { mutableStateOf(false) }
@@ -55,18 +141,189 @@ fun MarketScreen(
     val cartSubtotal = cartItems.sumOf { it.price * it.quantity }
 
     Box(modifier = modifier.fillMaxSize()) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(16.dp)
-        ) {
-            // --- Header ---
-            YangaHeader(
-                title = "Yanga Directory 🎪",
-                subtitle = "Browse delicious foods, organic fruits, retail goods and dine-in tables",
-                icon = Icons.Default.ShoppingCart,
-                onIconClick = { if (cartCount > 0) showCartDialog = true }
-            )
+        if (selectedRestaurantForMenu != null) {
+            val r = selectedRestaurantForMenu!!
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(16.dp)
+            ) {
+                // Back Button
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .clickable { selectedRestaurantForMenu = null }
+                        .padding(vertical = 8.dp)
+                        .testTag("menu_back_btn")
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.ArrowBack,
+                        contentDescription = "Back",
+                        tint = PrimaryPurple
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = "Back to Market",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = PrimaryPurple
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // Restaurant Title Banner
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFFFAF5FF)),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .border(2.dp, PrimaryPurple, RoundedCornerShape(16.dp))
+                ) {
+                    Column {
+                        Image(
+                            painter = painterResource(id = getRestaurantDrawableRes(r.name)),
+                            contentDescription = r.name,
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(120.dp)
+                        )
+                        Column(modifier = Modifier.padding(12.dp)) {
+                            Text(
+                                text = r.name,
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.Black,
+                                color = CharcoalBlack
+                            )
+                            Text(
+                                text = "Cuisine: ${r.cuisine} • ⭐ ${r.rating}",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = CharcoalBlack.copy(alpha = 0.6f)
+                            )
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                modifier = Modifier.padding(top = 4.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.LocationOn,
+                                    contentDescription = null,
+                                    tint = PrimaryPurple,
+                                    modifier = Modifier.size(14.dp)
+                                )
+                                Text(
+                                    text = "${r.address} (${r.distanceKm}km away)",
+                                    fontSize = 11.sp,
+                                    color = CharcoalBlack.copy(alpha = 0.5f),
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(
+                    text = "Gourmet Kitchen Menu 🍲",
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Black,
+                    color = PrimaryPurple
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+
+                LazyColumn(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    if (r.meals.isEmpty()) {
+                        item {
+                            Box(
+                                modifier = Modifier.fillMaxWidth().padding(16.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = "No dishes loaded for this kitchen right now.",
+                                    fontSize = 12.sp,
+                                    color = Color.Gray,
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
+                        }
+                    } else {
+                        items(r.meals) { meal ->
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .background(Color(0xFFFAFAFA), RoundedCornerShape(12.dp))
+                                    .border(1.dp, Color(0xFFE5E7EB), RoundedCornerShape(12.dp))
+                                    .padding(10.dp),
+                                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Image(
+                                    painter = painterResource(id = getFoodDrawableRes(meal.name)),
+                                    contentDescription = meal.name,
+                                    contentScale = ContentScale.Crop,
+                                    modifier = Modifier
+                                        .size(70.dp)
+                                        .clip(RoundedCornerShape(10.dp))
+                                        .border(1.dp, Color(0xFFE5E7EB), RoundedCornerShape(10.dp))
+                                )
+
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = meal.name,
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.ExtraBold,
+                                        color = CharcoalBlack
+                                    )
+                                    Text(
+                                        text = meal.description,
+                                        fontSize = 10.sp,
+                                        color = CharcoalBlack.copy(alpha = 0.6f),
+                                        maxLines = 2,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text(
+                                        text = "₦${String.format("%,.0f", meal.price)}",
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Black,
+                                        color = PrimaryPurple
+                                    )
+                                }
+
+                                Button(
+                                    onClick = { viewModel.addToCart(meal.name, meal.price, meal.category, "FOOD") },
+                                    colors = ButtonDefaults.buttonColors(containerColor = SecondaryYellow, contentColor = CharcoalBlack),
+                                    shape = RoundedCornerShape(8.dp),
+                                    modifier = Modifier
+                                        .height(32.dp)
+                                        .border(1.dp, PrimaryPurple, RoundedCornerShape(8.dp))
+                                        .testTag("add_item_${meal.name.replace(" ", "_")}"),
+                                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
+                                ) {
+                                    Text("+ Add", fontSize = 10.sp, fontWeight = FontWeight.ExtraBold)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        } else {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(16.dp)
+            ) {
+                // --- Header ---
+                YangaHeader(
+                    title = "Yanga Market 🎪",
+                    subtitle = "Browse delicious foods, organic fruits, retail goods and dine-in tables",
+                    icon = Icons.Default.ShoppingCart,
+                    onIconClick = { if (cartCount > 0) showCartDialog = true }
+                )
 
             // --- Navigation Tabs ---
             TabRow(
@@ -104,13 +361,157 @@ fun MarketScreen(
                     selectedContentColor = PrimaryPurple,
                     unselectedContentColor = CharcoalBlack.copy(alpha = 0.5f)
                 )
-                Tab(
-                    selected = selectedTab == 3,
-                    onClick = { selectedTab = 3 },
-                    text = { Text("Help Guide 💡", fontWeight = FontWeight.ExtraBold, fontSize = 12.sp) },
-                    selectedContentColor = PrimaryPurple,
-                    unselectedContentColor = CharcoalBlack.copy(alpha = 0.5f)
-                )
+            }
+
+            // --- Adaptive Sort / Filter Chips Bar ---
+            if (selectedTab == 0) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 10.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    // 1. SELECT CATEGORY/VIEW MODE ROW
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Filter:",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Black,
+                            color = PrimaryPurple
+                        )
+                        YangaSortChip(
+                            text = "Show All 🍱",
+                            selected = viewModeOption == "All",
+                            onClick = { viewModeOption = "All" },
+                            modifier = Modifier.testTag("filter_view_all")
+                        )
+                        YangaSortChip(
+                            text = "Restaurants Only 🏪",
+                            selected = viewModeOption == "Restaurant",
+                            onClick = { viewModeOption = "Restaurant" },
+                            modifier = Modifier.testTag("filter_view_restaurants")
+                        )
+                        YangaSortChip(
+                            text = "Fruits Only 🍍",
+                            selected = viewModeOption == "Fruit",
+                            onClick = { viewModeOption = "Fruit" },
+                            modifier = Modifier.testTag("filter_view_fruits")
+                        )
+                    }
+
+                    if (deepFilter != "None") {
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(bottom = 4.dp),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "Active Filter:",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = PrimaryPurple
+                            )
+                            Card(
+                                colors = CardDefaults.cardColors(containerColor = SecondaryYellow.copy(alpha = 0.8f)),
+                                shape = RoundedCornerShape(8.dp),
+                                modifier = Modifier.clickable { viewModel.setDashboardMarketFilter("None") }
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    Text(
+                                        text = "$deepFilter limit 🎯",
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Black,
+                                        color = PrimaryPurple
+                                    )
+                                    Text(
+                                        text = "✕",
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Black,
+                                        color = PrimaryPurple
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    // 2. DISTANCE FILTER AND PRICE SORT ROW
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Options:",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Black,
+                            color = PrimaryPurple
+                        )
+                        YangaSortChip(
+                            text = "Nearest Only (≤ 1.5km) 📍",
+                            selected = filterClosestOnly,
+                            onClick = { filterClosestOnly = !filterClosestOnly },
+                            modifier = Modifier.testTag("filter_closest_only")
+                        )
+                        YangaSortChip(
+                            text = "Lowest to Highest 📈",
+                            selected = sortOption == "PriceAsc",
+                            onClick = { sortOption = if (sortOption == "PriceAsc") "Default" else "PriceAsc" },
+                            modifier = Modifier.testTag("filter_cheapest_btn")
+                        )
+                        YangaSortChip(
+                            text = "Highest to Lowest 📉",
+                            selected = sortOption == "PriceDesc",
+                            onClick = { sortOption = if (sortOption == "PriceDesc") "Default" else "PriceDesc" },
+                            modifier = Modifier.testTag("filter_costly_btn")
+                        )
+                    }
+                }
+            } else {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 12.dp)
+                        .horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Sort:",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Black,
+                        color = PrimaryPurple
+                    )
+                    YangaSortChip(
+                        text = "Nearest 📍",
+                        selected = sortOption == "Closest",
+                        onClick = { sortOption = if (sortOption == "Closest") "Default" else "Closest" },
+                        modifier = Modifier.testTag("filter_closest_btn")
+                    )
+                    YangaSortChip(
+                        text = "Lowest to Highest 📈",
+                        selected = sortOption == "PriceAsc",
+                        onClick = { sortOption = if (sortOption == "PriceAsc") "Default" else "PriceAsc" },
+                        modifier = Modifier.testTag("filter_cheapest_btn")
+                    )
+                    YangaSortChip(
+                        text = "Highest to Lowest 📉",
+                        selected = sortOption == "PriceDesc",
+                        onClick = { sortOption = if (sortOption == "PriceDesc") "Default" else "PriceDesc" },
+                        modifier = Modifier.testTag("filter_costly_btn")
+                    )
+                }
             }
 
             // --- Scrollable Lists based on Selected Tab ---
@@ -122,161 +523,51 @@ fun MarketScreen(
             ) {
                 when (selectedTab) {
                     0 -> {
-                        // --- Category: Foods ---
-                        item {
-                            ListCategoryTitle(text = "African Food Offerings 🥘")
-                        }
-                        if (foods.isEmpty()) {
-                            item { LoaderPlaceholder() }
-                        } else {
-                            items(foods, key = { it.name }) { food ->
-                                ShoppingItemCard(
-                                    name = food.name,
-                                    price = food.price,
-                                    category = food.category,
-                                    desc = food.description,
-                                    isFruit = false,
-                                    onAdd = { viewModel.addToCart(food.name, food.price, food.category, "FOOD") }
-                                )
+                        if (viewModeOption == "All" || viewModeOption == "Restaurant") {
+                            item {
+                                ListCategoryTitle(text = "Local Kitchens & Restaurants 🏪")
+                            }
+                            if (eatsRestaurants.isEmpty()) {
+                                item {
+                                    Box(
+                                        modifier = Modifier.fillMaxWidth().padding(16.dp),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text("No kitchens found in this range. 📍", color = Color.Gray, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                    }
+                                }
+                            } else {
+                                items(eatsRestaurants, key = { it.id }) { r ->
+                                    RestaurantEatsCard(
+                                        restaurant = r,
+                                        onBrowseMenu = {
+                                            selectedRestaurantForMenu = r
+                                        }
+                                    )
+                                }
                             }
                         }
-                                    // --- Category: Fruits ---
-                        item {
-                            Spacer(modifier = Modifier.height(16.dp))
-                            YangaVisuallyDistinctSection(
-                                title = "GraphQL Declarative Field Query ⚡",
-                                subtitle = "Toggle query fields to selectively reduce response payload size under GraphQL specifications:",
-                                headerBadgeText = "REAL-TIME",
-                                headerBadgeColor = Color(0xFFEFF6FF),
-                                backgroundColor = Color(0xFFF9FAFB),
-                                borderColor = PrimaryPurple.copy(alpha = 0.5f),
-                                borderWidth = 2.0,
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Spacer(modifier = Modifier.height(2.dp))
 
-                                // Active Selectors Flow Layout (Chowdeck Neobrutalist design specs)
-                                val selectedFields by viewModel.selectedFruitFields.collectAsState()
-                                val currentQuery by viewModel.currentFruitsQuery.collectAsState()
-
-                                val fieldsList = listOf("name", "price", "category", "description")
-
-                                YangaFlowButtonsLayout(
-                                    modifier = Modifier.fillMaxWidth()
-                                ) {
-                                    fieldsList.forEach { field ->
-                                        val isRequired = field == "name" || field == "price"
-                                        val isChecked = selectedFields.contains(field)
-
-                                        Row(
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            modifier = Modifier
-                                                .clip(RoundedCornerShape(8.dp))
-                                                .clickable(enabled = !isRequired) {
-                                                    val newList = if (isChecked) {
-                                                        selectedFields.filter { it != field }
-                                                    } else {
-                                                        selectedFields + field
-                                                    }
-                                                    viewModel.queryFruitsDeclaratively(newList)
-                                                }
-                                                .padding(4.dp)
-                                        ) {
-                                            Checkbox(
-                                                checked = isChecked,
-                                                onCheckedChange = if (isRequired) null else { checked ->
-                                                    val newList = if (!checked) {
-                                                        selectedFields.filter { it != field }
-                                                    } else {
-                                                        selectedFields + field
-                                                    }
-                                                    viewModel.queryFruitsDeclaratively(newList)
-                                                },
-                                                colors = CheckboxDefaults.colors(
-                                                    checkedColor = PrimaryPurple,
-                                                    checkmarkColor = Color.White
-                                                ),
-                                                modifier = Modifier.size(24.dp).testTag("field_checkbox_$field")
-                                            )
-                                            Spacer(modifier = Modifier.width(4.dp))
-                                            Text(
-                                                text = field.replaceFirstChar { it.uppercase() },
-                                                fontSize = 12.sp,
-                                                fontWeight = if (isRequired) FontWeight.Bold else FontWeight.Medium,
-                                                color = if (isRequired) CharcoalBlack else CharcoalBlack.copy(alpha = 0.8f)
-                                            )
-                                        }
-                                    }
-                                }
-
-                                    Spacer(modifier = Modifier.height(12.dp))
-
-                                    // Calculated simulated payload impact
-                                    val schemaSizeFactor = when (selectedFields.size) {
-                                        2 -> "0.45 KB (Optimized 📉 -60%)"
-                                        3 -> "0.78 KB (Standard 📊 -30%)"
-                                        else -> "1.12 KB (Full Payload 🛑 100%)"
-                                    }
-
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Text(
-                                            text = "Estimated Payload Weight:",
-                                            fontSize = 11.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            color = CharcoalBlack
-                                        )
-                                        Text(
-                                            text = schemaSizeFactor,
-                                            fontSize = 11.sp,
-                                            fontWeight = FontWeight.Black,
-                                            color = if (selectedFields.size == 2) Color(0xFF16A34A) else Color(0xFFD97706)
-                                        )
-                                    }
-
-                                    Spacer(modifier = Modifier.height(10.dp))
-
-                                    // GraphQL Query Preview Block
-                                    Text(
-                                        text = "Declarative GraphQL payload queried:",
-                                        fontSize = 10.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = CharcoalBlack.copy(alpha = 0.5f)
-                                    )
-                                    Spacer(modifier = Modifier.height(4.dp))
-                                    Box(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .background(Color(0xFF1E1E1E), RoundedCornerShape(8.dp))
-                                            .padding(10.dp)
-                                    ) {
-                                        Text(
-                                            text = currentQuery,
-                                            fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
-                                            fontSize = 10.sp,
-                                            color = Color(0xFF4ADE80),
-                                            lineHeight = 14.sp
-                                        )
-                                    }
-                                }
-                            Spacer(modifier = Modifier.height(16.dp))
-                            ListCategoryTitle(text = "Organic Fresh Fruits 🍍")
-                        }
-                        if (fruits.isEmpty()) {
-                            item { LoaderPlaceholder() }
-                        } else {
-                            items(fruits, key = { it.name }) { fruit ->
-                                ShoppingItemCard(
-                                    name = fruit.name,
-                                    price = fruit.price,
-                                    category = fruit.category,
-                                    desc = fruit.description,
-                                    isFruit = true,
-                                    onAdd = { viewModel.addToCart(fruit.name, fruit.price, fruit.category, "FRUIT") }
+                        if (viewModeOption == "All" || viewModeOption == "Fruit") {
+                            item {
+                                Spacer(modifier = Modifier.height(16.dp))
+                                ListCategoryTitle(
+                                    text = if (viewModeOption == "Fruit") "Organic Fresh Fruits Only 🍎" else "Organic Fresh Foods & Fruits 🍍"
                                 )
+                            }
+                            if (eatsFoods.isEmpty()) {
+                                item { LoaderPlaceholder() }
+                            } else {
+                                items(eatsFoods, key = { it.name }) { item ->
+                                    ShoppingItemCard(
+                                        name = item.name,
+                                        price = item.price,
+                                        category = item.category,
+                                        desc = item.description,
+                                        isFruit = item.category.equals("fruit", ignoreCase = true) || item.name.contains("Pineapple", ignoreCase = true) || item.name.contains("Mango", ignoreCase = true) || item.name.contains("Smoothie", ignoreCase = true) || item.name.contains("Fruit", ignoreCase = true),
+                                        onAdd = { viewModel.addToCart(item.name, item.price, item.category, if (item.category.equals("fruit", ignoreCase = true)) "FRUIT" else "FOOD") }
+                                    )
+                                }
                             }
                         }
                     }
@@ -285,16 +576,10 @@ fun MarketScreen(
                         item {
                             ListCategoryTitle(text = "Local Retail Outlets & Grocers 🛍️")
                         }
-                        item {
-                            FacilitySpaceInquiryCard(viewModel = viewModel)
-                        }
-                        item {
-                            Spacer(modifier = Modifier.height(10.dp))
-                        }
-                        if (shops.isEmpty()) {
+                        if (sortedShops.isEmpty()) {
                             item { LoaderPlaceholder() }
                         } else {
-                            items(shops, key = { it.name }) { shop ->
+                            items(sortedShops, key = { it.name }) { shop ->
                                 RetailShopCard(shop = shop, onAddItem = { name, price, cat ->
                                     viewModel.addToCart(name, price, cat, "RETAIL")
                                 })
@@ -306,195 +591,25 @@ fun MarketScreen(
                         item {
                             ListCategoryTitle(text = "Dine-Out Table Bookings 🍽️")
                         }
-                        if (restaurants.isEmpty()) {
+                        if (sortedRestaurants.isEmpty()) {
                             item { LoaderPlaceholder() }
                         } else {
-                            items(restaurants, key = { it.name }) { r ->
-                                RestaurantBookingCard(restaurant = r, onReserve = { time ->
-                                    viewModel.reserveRestaurantTable(r, time)
-                                })
+                            items(sortedRestaurants, key = { it.name }) { r ->
+                                RestaurantBookingCard(
+                                    restaurant = r,
+                                    onReserve = { time ->
+                                        viewModel.reserveRestaurantTable(r, time)
+                                    },
+                                    viewModel = viewModel
+                                )
                             }
-                        }
-                    }
-
-                    3 -> {
-                        item {
-                            YangaMultiColumnProductHelpToolSection(viewModel = viewModel)
                         }
                     }
                 }
             }
-        }
-
-        // --- Bottom Cart Notification Sticker bar ---
-        if (cartCount > 0) {
-            Box(
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .padding(20.dp)
-                    .fillMaxWidth()
-                    .testTag("cart_preview_bar")
-            ) {
-                Card(
-                    colors = CardDefaults.cardColors(containerColor = SecondaryYellow),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(16.dp))
-                        .border(3.dp, PrimaryPurple, RoundedCornerShape(16.dp))
-                        .clickable { showCartDialog = true },
-                    elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(14.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Box(
-                                modifier = Modifier
-                                    .size(34.dp)
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .background(PrimaryPurple),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    text = cartCount.toString(),
-                                    color = Color.White,
-                                    fontWeight = FontWeight.Black,
-                                    fontSize = 14.sp
-                                )
-                            }
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Column {
-                                Text(
-                                    text = "Checkout Basket Open!",
-                                    fontSize = 13.sp,
-                                    fontWeight = FontWeight.ExtraBold,
-                                    color = CharcoalBlack
-                                )
-                                Text(
-                                    text = "Tap to review items in your shopping list",
-                                    fontSize = 10.sp,
-                                    color = CharcoalBlack.copy(alpha = 0.6f),
-                                    fontWeight = FontWeight.Bold
-                                )
-                            }
-                        }
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(
-                                text = "₦${String.format("%,.2f", cartSubtotal)}",
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.Black,
-                                color = CharcoalBlack
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Icon(imageVector = Icons.Default.ArrowForward, contentDescription = "Arrow right", tint = PrimaryPurple)
-                        }
-                    }
-                }
-            }
-        }
-
-        // --- Custom Interactive Shopping Cart Dialogue Drawer ---
-        if (showCartDialog) {
-            AlertDialog(
-                onDismissRequest = { showCartDialog = false },
-                confirmButton = {
-                    YangaFunButton(
-                        text = "Pay ₦${String.format("%,.0f", cartSubtotal)} with Wallet",
-                        onClick = {
-                            viewModel.checkoutCart()
-                            showCartDialog = false
-                        },
-                        containerColor = PrimaryPurple,
-                        contentColor = Color.White,
-                        modifier = Modifier.fillMaxWidth().testTag("cart_checkout_pay_btn")
-                    )
-                },
-                dismissButton = {
-                    TextButton(
-                        onClick = { showCartDialog = false },
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text("Add more items +", fontWeight = FontWeight.Bold, color = PrimaryPurple)
-                    }
-                },
-                title = {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text("My Shopping Basket 🛒", fontSize = 18.sp, fontWeight = FontWeight.Black)
-                        IconButton(onClick = { showCartDialog = false }) {
-                            Icon(imageVector = Icons.Default.Close, contentDescription = "Close cart")
-                        }
-                    }
-                },
-                text = {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .heightIn(max = 280.dp)
-                    ) {
-                        Text(
-                            text = "Yanga pay secure transaction verification logic is loaded. Check your balance before ordering.",
-                            fontSize = 11.sp,
-                            color = CharcoalBlack.copy(alpha = 0.5f),
-                            modifier = Modifier.padding(bottom = 8.dp)
-                        )
-                        Divider(color = PrimaryPurple.copy(alpha = 0.12f))
-                        Spacer(modifier = Modifier.height(6.dp))
-                        LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            items(cartItems, key = { it.id }) { item ->
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Column(modifier = Modifier.weight(1f)) {
-                                        Text(
-                                            text = item.name,
-                                            fontSize = 12.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            color = CharcoalBlack,
-                                            maxLines = 1,
-                                            overflow = TextOverflow.Ellipsis
-                                        )
-                                        Text(
-                                            text = "₦${String.format("%,.2f", item.price)} each",
-                                            fontSize = 10.sp,
-                                            color = CharcoalBlack.copy(alpha = 0.5f)
-                                        )
-                                    }
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        IconButton(onClick = { viewModel.modifyCartQuantity(item, -1) }, modifier = Modifier.size(28.dp)) {
-                                            Icon(imageVector = Icons.Default.RemoveCircleOutline, contentDescription = "Minus", tint = PrimaryPurple)
-                                        }
-                                        Text(
-                                            text = item.quantity.toString(),
-                                            fontWeight = FontWeight.Bold,
-                                            fontSize = 13.sp,
-                                            modifier = Modifier.padding(horizontal = 6.dp)
-                                        )
-                                        IconButton(onClick = { viewModel.modifyCartQuantity(item, 1) }, modifier = Modifier.size(28.dp)) {
-                                            Icon(imageVector = Icons.Default.AddCircleOutline, contentDescription = "Plus", tint = PrimaryPurple)
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                },
-                shape = RoundedCornerShape(16.dp),
-                modifier = Modifier
-                    .border(3.dp, PrimaryPurple, RoundedCornerShape(16.dp))
-                    .testTag("shopping_cart_dialog")
-            )
         }
     }
+}
 }
 
 @Composable
@@ -535,75 +650,134 @@ fun ShoppingItemCard(
             .fillMaxWidth()
             .border(2.dp, if (isFruit) Color(0xFF22C55E).copy(alpha = 0.5f) else PrimaryPurple.copy(alpha = 0.25f), RoundedCornerShape(14.dp))
     ) {
-        Column(modifier = Modifier.padding(12.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                if (category.isNotBlank()) {
-                    YangaBadge(
-                        text = category,
-                        containerColor = if (isFruit) Color(0xFFDCFCE7) else SecondaryYellow,
-                        contentColor = if (isFruit) Color(0xFF15803D) else PrimaryPurple
-                    )
-                } else {
-                    Box(
-                        modifier = Modifier
-                            .background(Color(0xFFF3F4F6), RoundedCornerShape(6.dp))
-                            .padding(horizontal = 6.dp, vertical = 2.dp)
-                    ) {
-                        Text(
-                            text = "No category queried (Optimized)",
-                            color = Color.Gray,
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.Bold
+        Row(
+            modifier = Modifier.padding(12.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Image(
+                painter = painterResource(id = getFoodDrawableRes(name)),
+                contentDescription = name,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier
+                    .size(88.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .border(1.5.dp, if (isFruit) Color(0xFF22C55E).copy(alpha = 0.3f) else PrimaryPurple.copy(alpha = 0.15f), RoundedCornerShape(12.dp))
+            )
+
+            Column(modifier = Modifier.weight(1f)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    if (category.isNotBlank()) {
+                        YangaBadge(
+                            text = category,
+                            containerColor = if (isFruit) Color(0xFFDCFCE7) else SecondaryYellow,
+                            contentColor = if (isFruit) Color(0xFF15803D) else PrimaryPurple
                         )
+                    } else {
+                        Box(
+                            modifier = Modifier
+                                .background(Color(0xFFF3F4F6), RoundedCornerShape(6.dp))
+                                .padding(horizontal = 6.dp, vertical = 2.dp)
+                        ) {
+                            Text(
+                                text = "Eats",
+                                color = Color.Gray,
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
                     }
+                    Text(
+                        text = if (price > 0) "₦${String.format("%,.0f", price)}" else "",
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Black,
+                        color = CharcoalBlack
+                    )
                 }
+                Spacer(modifier = Modifier.height(2.dp))
                 Text(
-                    text = if (price > 0) "₦${String.format("%,.0f", price)}" else "No price queried",
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Black,
+                    text = if (name.isNotBlank()) name else "Food Selection",
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.ExtraBold,
                     color = CharcoalBlack
                 )
-            }
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = if (name.isNotBlank()) name else "No name queried",
-                fontSize = 14.sp,
-                fontWeight = FontWeight.ExtraBold,
-                color = CharcoalBlack
-            )
-            val finalDesc = if (desc.isNotBlank()) desc else "Description omitted to save network payload (GraphQL specifications)."
-            Text(
-                text = finalDesc,
-                fontSize = 11.sp,
-                color = if (desc.isNotBlank()) CharcoalBlack.copy(alpha = 0.60f) else Color(0xFF15803D).copy(alpha = 0.8f),
-                fontWeight = if (desc.isNotBlank()) FontWeight.Medium else FontWeight.SemiBold,
-                style = if (desc.isNotBlank()) MaterialTheme.typography.bodyMedium else androidx.compose.ui.text.TextStyle(fontStyle = androidx.compose.ui.text.font.FontStyle.Italic),
-                lineHeight = 14.sp,
-                modifier = Modifier.padding(vertical = 4.dp)
-            )
-            Spacer(modifier = Modifier.height(6.dp))
-            Button(
-                onClick = onAdd,
-                colors = ButtonDefaults.buttonColors(containerColor = if (isFruit) Color(0xFF22C55E) else PrimaryPurple),
-                shape = RoundedCornerShape(10.dp),
-                modifier = Modifier
-                    .align(Alignment.End)
-                    .height(34.dp)
-                    .border(1.dp, if (isFruit) Color(0xFF15803D) else PrimaryPurple, RoundedCornerShape(10.dp))
-                    .testTag("add_item_${name.replace(" ", "_")}")
-            ) {
+                val finalDesc = if (desc.isNotBlank()) desc else "Refreshing and healthy selection sourced fresh daily."
                 Text(
-                    text = "Add to Cart +",
+                    text = finalDesc,
                     fontSize = 10.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White
+                    color = CharcoalBlack.copy(alpha = 0.60f),
+                    lineHeight = 13.sp,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.padding(vertical = 2.dp)
                 )
+                Spacer(modifier = Modifier.height(4.dp))
+                Button(
+                    onClick = onAdd,
+                    colors = ButtonDefaults.buttonColors(containerColor = if (isFruit) Color(0xFF22C55E) else PrimaryPurple),
+                    shape = RoundedCornerShape(8.dp),
+                    modifier = Modifier
+                        .align(Alignment.End)
+                        .height(30.dp)
+                        .border(1.dp, if (isFruit) Color(0xFF15803D) else PrimaryPurple, RoundedCornerShape(8.dp))
+                        .testTag("add_item_${name.replace(" ", "_")}"),
+                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp)
+                ) {
+                    Text(
+                        text = "Add +",
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
+                    )
+                }
             }
         }
+    }
+}
+
+@Composable
+fun getRetailShopDrawableRes(shopName: String): Int {
+    return when {
+        shopName.contains("Fashion", ignoreCase = true) -> com.example.R.drawable.img_retail_fashion_1782106609270
+        shopName.contains("Alaba", ignoreCase = true) || shopName.contains("Gadget", ignoreCase = true) || shopName.contains("Tech", ignoreCase = true) -> com.example.R.drawable.img_retail_tech_1782106619597
+        else -> com.example.R.drawable.img_retail_tech_1782106619597
+    }
+}
+
+fun getRestaurantDrawableRes(restaurantName: String): Int {
+    return when {
+        restaurantName.contains("Pepper", ignoreCase = true) -> com.example.R.drawable.img_dining_pepper_1782106632965
+        restaurantName.contains("Wok", ignoreCase = true) || restaurantName.contains("Panda", ignoreCase = true) -> com.example.R.drawable.img_dining_wok_1782106645149
+        else -> com.example.R.drawable.img_food_suya_burger
+    }
+}
+
+@Composable
+fun YangaSortChip(
+    text: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier
+            .clip(RoundedCornerShape(12.dp))
+            .background(if (selected) PrimaryPurple else SecondaryYellow.copy(alpha = 0.2f))
+            .border(2.dp, if (selected) CharcoalBlack else PrimaryPurple.copy(alpha = 0.4f), RoundedCornerShape(12.dp))
+            .clickable { onClick() }
+            .padding(horizontal = 12.dp, vertical = 6.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = text,
+            fontSize = 11.sp,
+            fontWeight = FontWeight.ExtraBold,
+            color = if (selected) Color.White else PrimaryPurple
+        )
     }
 }
 
@@ -618,73 +792,114 @@ fun RetailShopCard(
         colors = CardDefaults.cardColors(containerColor = Color.White),
         modifier = Modifier
             .fillMaxWidth()
-            .border(2.dp, PrimaryPurple, RoundedCornerShape(14.dp))
+            .border(2.dp, PrimaryPurple, RoundedCornerShape(16.dp))
             .clickable { expanded = !expanded }
     ) {
-        Column(modifier = Modifier.padding(12.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(imageVector = Icons.Default.Storefront, contentDescription = null, tint = PrimaryPurple)
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Column {
-                        Text(
-                            text = shop.name,
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.ExtraBold,
-                            color = CharcoalBlack
-                        )
-                        Text(
-                            text = "${shop.specialty} • ${shop.distanceKm}km away",
-                            fontSize = 11.sp,
-                            color = CharcoalBlack.copy(alpha = 0.5f),
-                            fontWeight = FontWeight.Medium
-                        )
-                    }
-                }
-                Icon(
-                    imageVector = if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
-                    contentDescription = null,
-                    tint = PrimaryPurple
-                )
-            }
+        Column {
+            // Header Image showing Retail Shop graphics
+            Image(
+                painter = painterResource(id = getRetailShopDrawableRes(shop.name)),
+                contentDescription = shop.name,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(115.dp)
+            )
 
-            if (expanded) {
-                Spacer(modifier = Modifier.height(10.dp))
-                Divider(color = PrimaryPurple.copy(alpha = 0.1f))
-                Spacer(modifier = Modifier.height(6.dp))
-                shop.items.forEach { retailItem ->
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 4.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
+            Column(modifier = Modifier.padding(12.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(imageVector = Icons.Default.Storefront, contentDescription = null, tint = PrimaryPurple)
+                        Spacer(modifier = Modifier.width(6.dp))
                         Column {
                             Text(
-                                text = retailItem.name,
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Bold,
+                                text = shop.name,
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.Black,
                                 color = CharcoalBlack
                             )
-                            Text(
-                                text = "Category: ${retailItem.category}",
-                                fontSize = 10.sp,
-                                color = CharcoalBlack.copy(alpha = 0.5f)
-                            )
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Text(
+                                    text = "${shop.specialty}",
+                                    fontSize = 11.sp,
+                                    color = CharcoalBlack.copy(alpha = 0.6f),
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Box(
+                                    modifier = Modifier
+                                        .background(Color(0xFFDCFCE7), RoundedCornerShape(6.dp))
+                                        .padding(vertical = 1.dp, horizontal = 4.dp)
+                                ) {
+                                    Text(
+                                        text = "${shop.distanceKm}km away",
+                                        fontSize = 9.sp,
+                                        fontWeight = FontWeight.ExtraBold,
+                                        color = Color(0xFF16A34A)
+                                    )
+                                }
+                            }
                         }
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(
-                                text = "₦${String.format("%,.0f", retailItem.price)}",
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.ExtraBold,
-                                color = CharcoalBlack
+                    }
+                    Icon(
+                        imageVector = if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                        contentDescription = null,
+                        tint = PrimaryPurple
+                    )
+                }
+
+                if (expanded) {
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Divider(color = PrimaryPurple.copy(alpha = 0.12f))
+                    Spacer(modifier = Modifier.height(8.dp))
+                    
+                    shop.items.forEach { retailItem ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 6.dp)
+                                .background(Color(0xFFFAFAFA), RoundedCornerShape(12.dp))
+                                .border(1.dp, Color(0xFFE5E7EB), RoundedCornerShape(12.dp))
+                                .padding(8.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Image(
+                                painter = painterResource(id = getRetailShopDrawableRes(shop.name)),
+                                contentDescription = retailItem.name,
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier
+                                    .size(54.dp)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .border(1.dp, Color(0xFFE5E7EB), RoundedCornerShape(8.dp))
                             )
-                            Spacer(modifier = Modifier.width(10.dp))
+
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = retailItem.name,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = CharcoalBlack
+                                )
+                                Text(
+                                    text = "Category: ${retailItem.category}",
+                                    fontSize = 10.sp,
+                                    color = CharcoalBlack.copy(alpha = 0.5f)
+                                )
+                                Text(
+                                    text = "₦${String.format("%,.0f", retailItem.price)}",
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = PrimaryPurple
+                                )
+                            }
+
                             Button(
                                 onClick = { onAddItem(retailItem.name, retailItem.price, retailItem.category) },
                                 colors = ButtonDefaults.buttonColors(containerColor = SecondaryYellow, contentColor = CharcoalBlack),
@@ -692,7 +907,8 @@ fun RetailShopCard(
                                 modifier = Modifier
                                     .height(28.dp)
                                     .border(1.dp, PrimaryPurple, RoundedCornerShape(8.dp))
-                                    .testTag("add_item_${retailItem.name.replace(" ", "_")}")
+                                    .testTag("add_item_${retailItem.name.replace(" ", "_")}"),
+                                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp)
                             ) {
                                 Text("+ Buy", fontSize = 9.sp, fontWeight = FontWeight.ExtraBold)
                             }
@@ -705,83 +921,304 @@ fun RetailShopCard(
 }
 
 @Composable
+fun RestaurantEatsCard(
+    restaurant: com.example.domain.model.Restaurant,
+    onBrowseMenu: () -> Unit
+) {
+    Card(
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        modifier = Modifier
+            .fillMaxWidth()
+            .border(2.dp, PrimaryPurple, RoundedCornerShape(16.dp))
+            .clickable { onBrowseMenu() }
+            .testTag("restaurant_eats_card_${restaurant.name.replace(" ", "_")}")
+    ) {
+        Column {
+            Image(
+                painter = painterResource(id = getRestaurantDrawableRes(restaurant.name)),
+                contentDescription = restaurant.name,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(110.dp)
+            )
+            Column(modifier = Modifier.padding(12.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = restaurant.name,
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Black,
+                        color = CharcoalBlack,
+                        modifier = Modifier.weight(1f)
+                    )
+                    Card(
+                        colors = CardDefaults.cardColors(containerColor = SecondaryYellow.copy(alpha = 0.2f)),
+                        shape = RoundedCornerShape(6.dp)
+                    ) {
+                        Text(
+                            text = "⭐ ${restaurant.rating}",
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Black,
+                            color = PrimaryPurple,
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "Specialty: ${restaurant.cuisine}",
+                    fontSize = 11.sp,
+                    color = CharcoalBlack.copy(alpha = 0.6f),
+                    fontWeight = FontWeight.Bold
+                )
+
+                Spacer(modifier = Modifier.height(6.dp))
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.LocationOn,
+                        contentDescription = "Distance",
+                        tint = PrimaryPurple,
+                        modifier = Modifier.size(13.dp)
+                    )
+                    Text(
+                        text = "${restaurant.address} (${restaurant.distanceKm} km away)",
+                        fontSize = 10.sp,
+                        color = Color(0xFF16A34A),
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
+                Button(
+                    onClick = onBrowseMenu,
+                    colors = ButtonDefaults.buttonColors(containerColor = PrimaryPurple, contentColor = Color.White),
+                    shape = RoundedCornerShape(10.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(36.dp)
+                        .testTag("browse_menu_button_${restaurant.name.replace(" ", "_")}"),
+                    contentPadding = PaddingValues(0.dp)
+                ) {
+                    Text(
+                        text = "Browse Dishes & Menu 🍲",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Black
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
 fun RestaurantBookingCard(
     restaurant: com.example.domain.model.Restaurant,
-    onReserve: (String) -> Unit
+    onReserve: (String) -> Unit,
+    viewModel: MainViewModel
 ) {
     val times = listOf("12:00 PM", "3:30 PM", "7:00 PM")
     var selectedTime by remember { mutableStateOf("7:00 PM") }
+    var expanded by remember { mutableStateOf(false) }
 
     Card(
         colors = CardDefaults.cardColors(containerColor = Color.White),
         modifier = Modifier
             .fillMaxWidth()
-            .border(2.dp, PrimaryPurple, RoundedCornerShape(14.dp))
+            .border(2.dp, PrimaryPurple, RoundedCornerShape(16.dp))
+            .clickable { expanded = !expanded }
     ) {
-        Column(modifier = Modifier.padding(12.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column {
-                    Text(
-                        text = restaurant.name,
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                        color = CharcoalBlack
-                    )
-                    Text(
-                        text = "Cuisine: ${restaurant.cuisine} • ⭐ ${restaurant.rating}",
-                        fontSize = 11.sp,
-                        color = CharcoalBlack.copy(alpha = 0.5f),
-                        fontWeight = FontWeight.Medium
-                    )
-                }
-                Text(
-                    text = "Table: ₦${String.format("%,.0f", restaurant.tablePrice)}",
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Black,
-                    color = PrimaryPurple
-                )
-            }
-            Spacer(modifier = Modifier.height(10.dp))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // Time slot selector
-                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    for (time in times) {
-                        val active = time == selectedTime
-                        Box(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(if (active) PrimaryPurple else Color(0xFFF1F1F1))
-                                .clickable { selectedTime = time }
-                                .padding(horizontal = 8.dp, vertical = 6.dp)
+        Column {
+            // Header Image showing Restaurant dining picture
+            Image(
+                painter = painterResource(id = getRestaurantDrawableRes(restaurant.name)),
+                contentDescription = restaurant.name,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(115.dp)
+            )
+
+            Column(modifier = Modifier.padding(12.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column {
+                        Text(
+                            text = restaurant.name,
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Black,
+                            color = CharcoalBlack
+                        )
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
                             Text(
-                                text = time,
-                                fontSize = 9.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = if (active) Color.White else CharcoalBlack
+                                text = "⭐ ${restaurant.rating} • ${restaurant.cuisine}",
+                                fontSize = 11.sp,
+                                color = CharcoalBlack.copy(alpha = 0.6f),
+                                fontWeight = FontWeight.Bold
                             )
+                            Box(
+                                modifier = Modifier
+                                    .background(Color(0xFFEFF6FF), RoundedCornerShape(6.dp))
+                                    .padding(vertical = 1.dp, horizontal = 4.dp)
+                            ) {
+                                Text(
+                                    text = "${restaurant.distanceKm}km away",
+                                    fontSize = 9.sp,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = Color(0xFF1D4ED8)
+                                )
+                            }
                         }
                     }
+                    Text(
+                        text = "Table: ₦${String.format("%,.0f", restaurant.tablePrice)}",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Black,
+                        color = PrimaryPurple
+                    )
                 }
-                
-                Button(
-                    onClick = { onReserve(selectedTime) },
-                    colors = ButtonDefaults.buttonColors(containerColor = SecondaryYellow, contentColor = CharcoalBlack),
-                    shape = RoundedCornerShape(8.dp),
-                    modifier = Modifier
-                        .height(32.dp)
-                        .border(1.5.dp, PrimaryPurple, RoundedCornerShape(8.dp))
-                        .testTag("reserve_btn_${restaurant.name.replace(" ", "_")}")
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text("Book Table", fontSize = 10.sp, fontWeight = FontWeight.ExtraBold)
+                    // Time slot selector
+                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        for (time in times) {
+                            val active = time == selectedTime
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(if (active) PrimaryPurple else Color(0xFFF1F1F1))
+                                    .clickable { selectedTime = time }
+                                    .padding(horizontal = 8.dp, vertical = 6.dp)
+                            ) {
+                                Text(
+                                    text = time,
+                                    fontSize = 9.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (active) Color.White else CharcoalBlack
+                                )
+                            }
+                        }
+                    }
+                    
+                    Button(
+                        onClick = { onReserve(selectedTime) },
+                        colors = ButtonDefaults.buttonColors(containerColor = SecondaryYellow, contentColor = CharcoalBlack),
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier
+                            .height(32.dp)
+                            .border(1.5.dp, PrimaryPurple, RoundedCornerShape(8.dp))
+                            .testTag("reserve_btn_${restaurant.name.replace(" ", "_")}"),
+                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp)
+                    ) {
+                        Text("Book Table", fontSize = 10.sp, fontWeight = FontWeight.ExtraBold)
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = if (expanded) "Hide Delicious Menu 🔼" else "View Restaurant Menu (${restaurant.meals.size} Dishes) 🍲 🔽",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Black,
+                        color = PrimaryPurple,
+                        modifier = Modifier.padding(vertical = 4.dp)
+                    )
+                }
+
+                if (expanded) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Divider(color = PrimaryPurple.copy(alpha = 0.12f))
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    if (restaurant.meals.isEmpty()) {
+                        Text(
+                            text = "No dishes loaded for this kitchen right now.",
+                            fontSize = 11.sp,
+                            color = Color.Gray,
+                            fontWeight = FontWeight.Medium
+                        )
+                    } else {
+                        restaurant.meals.forEach { meal ->
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 6.dp)
+                                    .background(Color(0xFFFAFAFA), RoundedCornerShape(12.dp))
+                                    .border(1.dp, Color(0xFFE5E7EB), RoundedCornerShape(12.dp))
+                                    .padding(8.dp),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Image(
+                                    painter = painterResource(id = getFoodDrawableRes(meal.name)),
+                                    contentDescription = meal.name,
+                                    contentScale = ContentScale.Crop,
+                                    modifier = Modifier
+                                        .size(60.dp)
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .border(1.dp, Color(0xFFE5E7EB), RoundedCornerShape(8.dp))
+                                )
+
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = meal.name,
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = CharcoalBlack
+                                    )
+                                    Text(
+                                        text = meal.description,
+                                        fontSize = 10.sp,
+                                        color = CharcoalBlack.copy(alpha = 0.6f),
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                    Text(
+                                        text = "₦${String.format("%,.0f", meal.price)}",
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.ExtraBold,
+                                        color = PrimaryPurple
+                                    )
+                                }
+
+                                Button(
+                                    onClick = { viewModel.addToCart(meal.name, meal.price, meal.category, "FOOD") },
+                                    colors = ButtonDefaults.buttonColors(containerColor = PrimaryPurple, contentColor = Color.White),
+                                    shape = RoundedCornerShape(8.dp),
+                                    modifier = Modifier
+                                        .height(28.dp)
+                                        .testTag("add_item_${meal.name.replace(" ", "_")}"),
+                                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)
+                                ) {
+                                    Text("+ Order", fontSize = 9.sp, fontWeight = FontWeight.ExtraBold)
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -1481,6 +1918,20 @@ fun YangaMultiColumnProductHelpTool(
                         )
                     }
 
+                    if (selectedCategory.id == "cat_food" || selectedCategory.id == "cat_fruits") {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Image(
+                            painter = painterResource(id = getFoodDrawableRes(selectedProduct.name)),
+                            contentDescription = selectedProduct.name,
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(110.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .border(1.dp, PrimaryPurple.copy(alpha = 0.15f), RoundedCornerShape(8.dp))
+                        )
+                    }
+
                     Spacer(modifier = Modifier.height(10.dp))
 
                     Text(
@@ -1550,5 +2001,16 @@ fun YangaMultiColumnProductHelpTool(
                 }
             }
         }
+    }
+}
+
+fun getFoodDrawableRes(name: String): Int {
+    return when {
+        name.contains("Jollof", ignoreCase = true) -> com.example.R.drawable.img_food_jollof
+        name.contains("Yam Fries", ignoreCase = true) || name.contains("Yam", ignoreCase = true) && name.contains("fries", ignoreCase = true) -> com.example.R.drawable.img_food_yam_fries
+        name.contains("Pounded Yam", ignoreCase = true) || name.contains("Egusi", ignoreCase = true) -> com.example.R.drawable.img_food_pounded_yam
+        name.contains("Suya", ignoreCase = true) || name.contains("Burger", ignoreCase = true) -> com.example.R.drawable.img_food_suya_burger
+        name.contains("Fruit", ignoreCase = true) || name.contains("Mango", ignoreCase = true) || name.contains("Smoothie", ignoreCase = true) || name.contains("Pawpaw", ignoreCase = true) || name.contains("Pineapple", ignoreCase = true) || name.contains("Avocado", ignoreCase = true) || name.contains("Tangerine", ignoreCase = true) || name.contains("Lemon", ignoreCase = true) -> com.example.R.drawable.img_food_fruits_platter
+        else -> com.example.R.drawable.img_food_fruits_platter
     }
 }

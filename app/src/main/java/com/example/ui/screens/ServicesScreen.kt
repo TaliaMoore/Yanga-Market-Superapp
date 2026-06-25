@@ -39,7 +39,6 @@ fun ServicesScreen(
     val freelancers by viewModel.freelancers.collectAsState()
     val escrowBookings by viewModel.escrowBookings.collectAsState()
 
-    var activeTab by remember { mutableIntStateOf(0) } // 0 = Browse Freelancers, 1 = Ongoing Projects & Escrow Vault
     var selectedFreelancer by remember { mutableStateOf<FreelancerProfile?>(null) }
 
     Scaffold(
@@ -94,67 +93,10 @@ fun ServicesScreen(
                 )
             } else {
                 Column(modifier = Modifier.fillMaxSize()) {
-                    // Custom tab selector with elegant purples and yellow badges
-                    TabRow(
-                        selectedTabIndex = activeTab,
-                        containerColor = PlayfulBg,
-                        contentColor = PrimaryPurple,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .border(1.dp, PrimaryPurple.copy(alpha = 0.08f))
-                    ) {
-                        Tab(
-                            selected = activeTab == 0,
-                            onClick = { activeTab = 0 },
-                            text = {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Icon(Icons.Default.Search, contentDescription = null, modifier = Modifier.size(16.dp))
-                                    Spacer(modifier = Modifier.width(6.dp))
-                                    Text("Explore Talent", fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                                }
-                            },
-                            modifier = Modifier.testTag("tab_explore_talent")
-                        )
-                        Tab(
-                            selected = activeTab == 1,
-                            onClick = { activeTab = 1 },
-                            text = {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Icon(Icons.Default.Lock, contentDescription = null, modifier = Modifier.size(16.dp), tint = PrimaryPurple)
-                                    Spacer(modifier = Modifier.width(6.dp))
-                                    Text("Escrow Ledger & Tracking", fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                                    if (escrowBookings.isNotEmpty()) {
-                                        Spacer(modifier = Modifier.width(6.dp))
-                                        Box(
-                                            modifier = Modifier
-                                                .background(SecondaryYellow, CircleShape)
-                                                .padding(horizontal = 6.dp, vertical = 2.dp)
-                                        ) {
-                                            Text(
-                                                text = escrowBookings.size.toString(),
-                                                fontSize = 10.sp,
-                                                fontWeight = FontWeight.Black,
-                                                color = CharcoalBlack
-                                            )
-                                        }
-                                    }
-                                }
-                            },
-                            modifier = Modifier.testTag("tab_escrow_ledger")
-                        )
-                    }
-
-                    if (activeTab == 0) {
-                        FreelancersListTab(
-                            freelancers = freelancers,
-                            onSelect = { selectedFreelancer = it }
-                        )
-                    } else {
-                        EscrowTrackingTab(
-                            bookings = escrowBookings,
-                            viewModel = viewModel
-                        )
-                    }
+                    FreelancersListTab(
+                        freelancers = freelancers,
+                        onSelect = { selectedFreelancer = it }
+                    )
                 }
             }
         }
@@ -162,24 +104,55 @@ fun ServicesScreen(
 }
 
 // --- EXPLORE TALENT TAB ---
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun FreelancersListTab(
     freelancers: List<FreelancerProfile>,
     onSelect: (FreelancerProfile) -> Unit
 ) {
     var selectedCategory by remember { mutableStateOf("All") }
-    val categories = listOf("All", "Software Dev", "Event Prep", "Catering", "Creative Arts")
+    var searchQuery by remember { mutableStateOf("") }
+    
+    // Explicit list of categories requested by user
+    val categories = listOf(
+        "All",
+        "Software",
+        "Business",
+        "Finance",
+        "Engineering",
+        "Software development",
+        "Creative arts"
+    )
 
-    val filteredFreelancers = if (selectedCategory == "All") {
-        freelancers
-    } else {
-        freelancers.filter { it.category.equals(selectedCategory, ignoreCase = true) }
+    // Suggestion chips for skills that are commonly needed (data entry, typing, printing)
+    val popularSkills = listOf("data entry", "typing", "printing", "excel", "software", "creative", "planning")
+
+    // Filter freelancers based on category and search query
+    val filteredFreelancers = freelancers.filter { f ->
+        val matchesCategory = when (selectedCategory) {
+            "All" -> true
+            "Software" -> f.category.equals("Software", ignoreCase = true)
+            "Software development" -> f.category.equals("Software", ignoreCase = true) || f.skills.any { it.contains("Software", ignoreCase = true) }
+            else -> f.category.equals(selectedCategory, ignoreCase = true)
+        }
+
+        val matchesQuery = if (searchQuery.isBlank()) {
+            true
+        } else {
+            f.name.contains(searchQuery, ignoreCase = true) ||
+            f.title.contains(searchQuery, ignoreCase = true) ||
+            f.bio.contains(searchQuery, ignoreCase = true) ||
+            f.category.contains(searchQuery, ignoreCase = true) ||
+            f.skills.any { it.contains(searchQuery, ignoreCase = true) }
+        }
+
+        matchesCategory && matchesQuery
     }
 
     Column(modifier = Modifier.fillMaxSize()) {
         // Horizontally Scrollable Categories
         LazyRow(
-            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
+            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             modifier = Modifier.fillMaxWidth()
         ) {
@@ -205,6 +178,96 @@ fun FreelancersListTab(
             }
         }
 
+        // Beautiful Search Bar for skills
+        Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)) {
+            OutlinedTextField(
+                value = searchQuery,
+                onValueChange = { searchQuery = it },
+                placeholder = { Text("Search skills (e.g. data entry, typing, printing)...", fontSize = 12.sp) },
+                leadingIcon = {
+                    Icon(
+                        imageVector = Icons.Default.Search,
+                        contentDescription = "Search",
+                        tint = PrimaryPurple.copy(alpha = 0.6f)
+                    )
+                },
+                trailingIcon = {
+                    if (searchQuery.isNotEmpty()) {
+                        IconButton(onClick = { searchQuery = "" }) {
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = "Clear search",
+                                tint = PrimaryPurple.copy(alpha = 0.6f)
+                            )
+                        }
+                    }
+                },
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = PrimaryPurple,
+                    unfocusedBorderColor = PrimaryPurple.copy(alpha = 0.2f),
+                    focusedContainerColor = Color.White,
+                    unfocusedContainerColor = Color.White
+                ),
+                shape = RoundedCornerShape(12.dp),
+                singleLine = true,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(52.dp)
+                    .testTag("skills_search_bar")
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Quick skill pickers list
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(
+                    text = "Pick skill:",
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = CharcoalBlack.copy(alpha = 0.5f),
+                    modifier = Modifier.padding(end = 6.dp)
+                )
+                
+                LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    contentPadding = PaddingValues(vertical = 2.dp),
+                    modifier = Modifier.weight(1f)
+                ) {
+                    items(popularSkills) { skill ->
+                        val isSelected = searchQuery.equals(skill, ignoreCase = true)
+                        Box(
+                            modifier = Modifier
+                                .background(
+                                    color = if (isSelected) PrimaryPurple else PrimaryPurple.copy(alpha = 0.05f),
+                                    shape = RoundedCornerShape(8.dp)
+                                )
+                                .border(
+                                    width = 1.dp,
+                                    color = if (isSelected) PrimaryPurple else PrimaryPurple.copy(alpha = 0.15f),
+                                    shape = RoundedCornerShape(8.dp)
+                                )
+                                .clickable {
+                                    searchQuery = if (isSelected) "" else skill
+                                }
+                                .padding(horizontal = 8.dp, vertical = 4.dp)
+                        ) {
+                            Text(
+                                text = skill,
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = if (isSelected) Color.White else PrimaryPurple
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(6.dp))
+
         if (filteredFreelancers.isEmpty()) {
             Box(
                 modifier = Modifier
@@ -216,10 +279,17 @@ fun FreelancersListTab(
                     Text("🔍", fontSize = 48.sp)
                     Spacer(modifier = Modifier.height(12.dp))
                     Text(
-                        text = "No freelancers registered in this niche yet.",
+                        text = "No freelancers matching these criteria.",
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Bold,
                         color = CharcoalBlack.copy(alpha = 0.5f)
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = "Try searching for another skill like 'typing' or 'data entry'.",
+                        fontSize = 12.sp,
+                        color = CharcoalBlack.copy(alpha = 0.4f),
+                        textAlign = TextAlign.Center
                     )
                 }
             }
@@ -239,6 +309,7 @@ fun FreelancersListTab(
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun FreelancerCard(
     profile: FreelancerProfile,
@@ -259,18 +330,30 @@ fun FreelancerCard(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Huge dynamic circular avatar emoji matching Yanga branding style
-                Box(
-                    modifier = Modifier
-                        .size(54.dp)
-                        .background(
-                            Brush.linearGradient(
-                                colors = listOf(SecondaryYellow, PrimaryPurple.copy(alpha = 0.15f))
-                            ), CircleShape
-                        ),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(profile.avatarEmoji, fontSize = 28.sp)
+                // Display profile photo if available, fallback to emoji
+                if (profile.profileImageRes != null) {
+                    androidx.compose.foundation.Image(
+                        painter = androidx.compose.ui.res.painterResource(id = profile.profileImageRes),
+                        contentDescription = profile.name,
+                        modifier = Modifier
+                            .size(54.dp)
+                            .clip(CircleShape)
+                            .border(2.dp, PrimaryPurple, CircleShape),
+                        contentScale = androidx.compose.ui.layout.ContentScale.Crop
+                    )
+                } else {
+                    Box(
+                        modifier = Modifier
+                            .size(54.dp)
+                            .background(
+                                Brush.linearGradient(
+                                    colors = listOf(SecondaryYellow, PrimaryPurple.copy(alpha = 0.15f))
+                                ), CircleShape
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(profile.avatarEmoji, fontSize = 28.sp)
+                    }
                 }
 
                 Spacer(modifier = Modifier.width(14.dp))
@@ -292,7 +375,7 @@ fun FreelancerCard(
                     )
                 }
 
-                // Dynamic Rating Badges
+                // Dynamic Rating Badges (calculating active rating averages)
                 Row(
                     modifier = Modifier
                         .background(PaleYellow, RoundedCornerShape(12.dp))
@@ -302,7 +385,7 @@ fun FreelancerCard(
                     Icon(Icons.Default.Star, contentDescription = null, tint = BrandOrange, modifier = Modifier.size(14.dp))
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(
-                        text = String.format(java.util.Locale.US, "%.1f", profile.rating),
+                        text = String.format(java.util.Locale.US, "%.1f", profile.calculateAverageRating()),
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Black,
                         color = CharcoalBlack
@@ -320,6 +403,47 @@ fun FreelancerCard(
                 overflow = TextOverflow.Ellipsis,
                 lineHeight = 16.sp
             )
+
+            // Dynamic skill tags directly on the card
+            if (profile.skills.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(10.dp))
+                FlowRow(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    profile.skills.take(4).forEach { skill ->
+                        Box(
+                            modifier = Modifier
+                                .background(PrimaryPurple.copy(alpha = 0.05f), RoundedCornerShape(12.dp))
+                                .border(0.5.dp, PrimaryPurple.copy(alpha = 0.15f), RoundedCornerShape(12.dp))
+                                .padding(horizontal = 8.dp, vertical = 3.dp)
+                        ) {
+                            Text(
+                                text = skill,
+                                fontSize = 9.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = PrimaryPurple
+                            )
+                        }
+                    }
+                    if (profile.skills.size > 4) {
+                        Box(
+                            modifier = Modifier
+                                .background(PaleYellow, RoundedCornerShape(12.dp))
+                                .border(0.5.dp, BrandOrange.copy(alpha = 0.15f), RoundedCornerShape(12.dp))
+                                .padding(horizontal = 8.dp, vertical = 3.dp)
+                        ) {
+                            Text(
+                                text = "+${profile.skills.size - 4}",
+                                fontSize = 9.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = CharcoalBlack
+                            )
+                        }
+                    }
+                }
+            }
 
             Spacer(modifier = Modifier.height(14.dp))
 
@@ -455,14 +579,26 @@ fun FreelancerDetailView(
                     .padding(top = 16.dp, bottom = 20.dp)
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(
-                        modifier = Modifier
-                            .size(68.dp)
-                            .background(SecondaryYellow, CircleShape)
-                            .border(3.dp, PrimaryPurple, CircleShape),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(profile.avatarEmoji, fontSize = 38.sp)
+                    if (profile.profileImageRes != null) {
+                        androidx.compose.foundation.Image(
+                            painter = androidx.compose.ui.res.painterResource(id = profile.profileImageRes),
+                            contentDescription = profile.name,
+                            modifier = Modifier
+                                .size(68.dp)
+                                .clip(CircleShape)
+                                .border(3.dp, PrimaryPurple, CircleShape),
+                            contentScale = androidx.compose.ui.layout.ContentScale.Crop
+                        )
+                    } else {
+                        Box(
+                            modifier = Modifier
+                                .size(68.dp)
+                                .background(SecondaryYellow, CircleShape)
+                                .border(3.dp, PrimaryPurple, CircleShape),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(profile.avatarEmoji, fontSize = 38.sp)
+                        }
                     }
 
                     Spacer(modifier = Modifier.width(16.dp))
@@ -483,6 +619,77 @@ fun FreelancerDetailView(
                     }
                 }
 
+                // LinkedIn and GitHub connect buttons
+                if (profile.linkedinUrl != null || profile.githubUrl != null) {
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            text = "Connect:",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = CharcoalBlack.copy(alpha = 0.5f)
+                        )
+                        profile.linkedinUrl?.let { link ->
+                            Card(
+                                onClick = { /* simulated link tap */ },
+                                colors = CardDefaults.cardColors(containerColor = Color(0xFF0077B5)),
+                                shape = RoundedCornerShape(8.dp),
+                                modifier = Modifier.height(28.dp)
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Link,
+                                        contentDescription = "LinkedIn",
+                                        tint = Color.White,
+                                        modifier = Modifier.size(12.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text(
+                                        text = "LinkedIn Profile",
+                                        color = Color.White,
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                            }
+                        }
+                        profile.githubUrl?.let { link ->
+                            Card(
+                                onClick = { /* simulated link tap */ },
+                                colors = CardDefaults.cardColors(containerColor = Color(0xFF181717)),
+                                shape = RoundedCornerShape(8.dp),
+                                modifier = Modifier.height(28.dp)
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Code,
+                                        contentDescription = "GitHub",
+                                        tint = Color.White,
+                                        modifier = Modifier.size(12.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text(
+                                        text = "GitHub",
+                                        color = Color.White,
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+
                 Spacer(modifier = Modifier.height(16.dp))
 
                 Text(
@@ -491,6 +698,38 @@ fun FreelancerDetailView(
                     color = CharcoalBlack.copy(alpha = 0.8f),
                     lineHeight = 18.sp
                 )
+
+                if (profile.skills.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(14.dp))
+                    Text(
+                        text = "Expertise & Skills",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = CharcoalBlack.copy(alpha = 0.5f)
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    FlowRow(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        profile.skills.forEach { skill ->
+                            Box(
+                                modifier = Modifier
+                                    .background(PrimaryPurple.copy(alpha = 0.08f), RoundedCornerShape(12.dp))
+                                    .border(1.dp, PrimaryPurple.copy(alpha = 0.15f), RoundedCornerShape(12.dp))
+                                    .padding(horizontal = 10.dp, vertical = 5.dp)
+                            ) {
+                                Text(
+                                    text = skill,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = PrimaryPurple
+                                )
+                            }
+                        }
+                    }
+                }
 
                 Spacer(modifier = Modifier.height(14.dp))
 
@@ -514,7 +753,7 @@ fun FreelancerDetailView(
                         Icon(Icons.Default.Star, contentDescription = null, tint = BrandOrange, modifier = Modifier.size(16.dp))
                         Spacer(modifier = Modifier.width(4.dp))
                         Text(
-                            text = "${profile.rating} / 5.0 (${profile.reviews.size} reviews)",
+                            text = String.format(java.util.Locale.US, "%.1f", profile.calculateAverageRating()) + " / 5.0 (${profile.reviews.size} reviews)",
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Black,
                             color = CharcoalBlack
@@ -554,25 +793,66 @@ fun FreelancerDetailView(
                 )
                 Spacer(modifier = Modifier.height(8.dp))
 
-                // Render portfolio elements as cards
-                FlowRow(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    profile.portfolioGallery.forEach { work ->
-                        Box(
-                            modifier = Modifier
-                                .background(WarmCardWhite, RoundedCornerShape(12.dp))
-                                .border(1.dp, PrimaryPurple.copy(alpha = 0.08f), RoundedCornerShape(12.dp))
-                                .padding(horizontal = 12.dp, vertical = 10.dp)
-                        ) {
-                            Text(
-                                text = work,
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = CharcoalBlack
-                            )
+                // Render portfolio images and descriptions if available
+                if (profile.portfolioImages.isNotEmpty()) {
+                    LazyRow(
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        contentPadding = PaddingValues(vertical = 4.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        items(profile.portfolioImages.zip(profile.portfolioGallery)) { (imgRes, text) ->
+                            Card(
+                                shape = RoundedCornerShape(12.dp),
+                                colors = CardDefaults.cardColors(containerColor = WarmCardWhite),
+                                border = BorderStroke(1.dp, PrimaryPurple.copy(alpha = 0.1f)),
+                                modifier = Modifier
+                                    .width(220.dp)
+                            ) {
+                                Column {
+                                    androidx.compose.foundation.Image(
+                                        painter = androidx.compose.ui.res.painterResource(id = imgRes),
+                                        contentDescription = text,
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(130.dp)
+                                            .clip(RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp)),
+                                        contentScale = androidx.compose.ui.layout.ContentScale.Crop
+                                    )
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    Text(
+                                        text = text,
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.ExtraBold,
+                                        color = CharcoalBlack,
+                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                        maxLines = 2,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    // Fallback to text tags if no images
+                    FlowRow(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        profile.portfolioGallery.forEach { work ->
+                            Box(
+                                modifier = Modifier
+                                    .background(WarmCardWhite, RoundedCornerShape(12.dp))
+                                    .border(1.dp, PrimaryPurple.copy(alpha = 0.08f), RoundedCornerShape(12.dp))
+                                    .padding(horizontal = 12.dp, vertical = 10.dp)
+                            ) {
+                                Text(
+                                    text = work,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = CharcoalBlack
+                                )
+                            }
                         }
                     }
                 }

@@ -7,16 +7,19 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -124,7 +127,7 @@ fun YangaSuperappShell() {
     NavigationTabItem("/hospitals", "Care", Icons.Default.LocalHospital),
     NavigationTabItem("/services", "Freelance", Icons.Default.Work),
     NavigationTabItem("/vibes", "Vibes", Icons.Default.Campaign),
-    NavigationTabItem("/wallet", "Wallet", Icons.Default.AccountBalanceWallet)
+    NavigationTabItem("/wallet", "Profile", Icons.Default.Person)
   )
 
   Scaffold(
@@ -201,6 +204,17 @@ fun YangaSuperappShell() {
           )
         }
 
+        // --- Global Header Top Bar showcasing Yanga Market title, Wallet of choice & Cart Mini Icon on top of each page ---
+        if (currentRoute != "/cart") {
+          YangaGlobalTopBar(
+            viewModel = viewModel,
+            onNavigate = { route ->
+              viewModel.clearBanners()
+              router.navigate(route)
+            }
+          )
+        }
+
         // --- Active Screen Fragment Routing ---
         Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
           when (currentRoute) {
@@ -215,8 +229,34 @@ fun YangaSuperappShell() {
             "/events" -> EventsScreen(viewModel = viewModel)
             "/hospitals" -> HospitalScreen(viewModel = viewModel)
             "/services" -> ServicesScreen(viewModel = viewModel)
-            "/vibes" -> VibesScreen(viewModel = viewModel)
-            "/wallet" -> WalletScreen(viewModel = viewModel)
+            "/vibes" -> VibesScreen(
+              viewModel = viewModel,
+              onNavigateToDetails = { postId ->
+                viewModel.selectVibePost(postId)
+                router.navigate("/vibe_details")
+              }
+            )
+            "/vibe_details" -> VibeDetailsScreen(
+              viewModel = viewModel,
+              onNavigateBack = { router.navigateBack() }
+            )
+            "/wallet" -> WalletScreen(
+              viewModel = viewModel,
+              onNavigateToSettings = { router.navigate("/settings") },
+              onNavigateToDraw = { router.navigate("/draw") }
+            )
+            "/draw" -> com.example.ui.screens.DrawScreen(
+              viewModel = viewModel,
+              onNavigateBack = { router.navigateBack() }
+            )
+            "/settings" -> SettingsScreen(
+              viewModel = viewModel,
+              onNavigateBack = { router.navigateBack() }
+            )
+            "/cart" -> CartScreen(
+              viewModel = viewModel,
+              onNavigateBack = { router.navigateBack() }
+            )
             "/yanga_rider" -> YangaRiderScreen(onNavigateBack = { router.navigateBack() })
             "/bulkbuy", "/bulkbuy5k", "/bulkbuy10k", "/bulkbuy15k", "/bulkbuy30k" -> {
               val initId = when (currentRoute) {
@@ -244,3 +284,119 @@ data class NavigationTabItem(
   val label: String,
   val icon: androidx.compose.ui.graphics.vector.ImageVector
 )
+
+@Composable
+fun YangaGlobalTopBar(
+    viewModel: MainViewModel,
+    onNavigate: (String) -> Unit
+) {
+    val walletBalance by viewModel.walletBalance.collectAsState()
+    val cartItems by viewModel.cartItems.collectAsState()
+    val cartCount = cartItems.sumOf { it.quantity }
+
+    Surface(
+        color = MaterialTheme.colorScheme.background,
+        tonalElevation = 4.dp,
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(modifier = Modifier.fillMaxWidth()) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 14.dp, vertical = 10.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Logo column
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.clickable { onNavigate("/home") }
+                ) {
+                    Text(
+                        text = "Yanga",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = PrimaryPurple
+                    )
+                    Spacer(modifier = Modifier.width(3.dp))
+                    Text(
+                        text = "Market",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFFF97316)
+                    )
+                    Text(
+                        text = " 🚀",
+                        fontSize = 14.sp
+                    )
+                }
+
+                // Wallet amount & mini-cart row
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    // Wallet amount balance
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .background(SecondaryYellow, RoundedCornerShape(10.dp))
+                            .border(1.2.dp, PrimaryPurple, RoundedCornerShape(10.dp))
+                            .clickable { onNavigate("/wallet") }
+                            .padding(horizontal = 8.dp, vertical = 4.dp)
+                            .testTag("global_topbar_wallet_amount")
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.AccountBalanceWallet,
+                            contentDescription = "Wallet",
+                            tint = PrimaryPurple,
+                            modifier = Modifier.size(11.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = "₦${String.format("%,.2f", walletBalance)}",
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Black,
+                            color = CharcoalBlack
+                        )
+                    }
+
+                    // Mini icon for the cart on top of every page
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .background(PlayfulCream, RoundedCornerShape(10.dp))
+                            .border(1.2.dp, PrimaryPurple, RoundedCornerShape(10.dp))
+                            .clickable { onNavigate("/cart") }
+                            .padding(horizontal = 8.dp, vertical = 4.dp)
+                            .testTag("global_topbar_cart_icon")
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.ShoppingCart,
+                            contentDescription = "Cart",
+                            tint = PrimaryPurple,
+                            modifier = Modifier.size(12.dp)
+                        )
+                        if (cartCount > 0) {
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .background(PrimaryPurple)
+                                    .padding(horizontal = 5.dp, vertical = 1.5.dp)
+                            ) {
+                                Text(
+                                    text = cartCount.toString(),
+                                    fontSize = 8.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.White
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+            Divider(color = PrimaryPurple.copy(alpha = 0.1f), thickness = 1.dp)
+        }
+    }
+}

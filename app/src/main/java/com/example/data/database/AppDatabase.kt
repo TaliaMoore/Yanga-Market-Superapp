@@ -19,7 +19,7 @@ import androidx.room.TypeConverters
         ShopEntity::class,
         ProductCategoryEntity::class
     ],
-    version = 6,
+    version = 7,
     exportSchema = false
 )
 @TypeConverters(DatabaseConverters::class)

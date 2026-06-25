@@ -7,6 +7,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import java.security.MessageDigest
 import java.util.UUID
+import com.example.R
 
 class MockGraphQLClient(
     private val database: AppDatabase,
@@ -26,7 +27,7 @@ class MockGraphQLClient(
             rating = 4.8,
             basePrice = 12000.0,
             bio = "Ex-Chowdeck Engineering Lead. Specializes in real-time WebSockets, hyper-performant Compose architectures, and local Room caching subsystems.",
-            category = "Software Dev",
+            category = "Software",
             portfolioGallery = listOf(
                 "Yanga Ride Tracking Mockups 🚗",
                 "Hospital Registry Database Node 🏥",
@@ -39,7 +40,12 @@ class MockGraphQLClient(
             reviews = listOf(
                 FreelancerReview(reviewerName = "Eniola Agbeyindo", rating = 5, comment = "Brilliant architect. Restructured our superapp wallet API with perfect concurrency flows!"),
                 FreelancerReview(reviewerName = "Olaide VI", rating = 4, comment = "Clean Kotlin and very reliable testing mocks.")
-            )
+            ),
+            linkedinUrl = "https://linkedin.com/in/tunde-alabi-yanga",
+            githubUrl = "https://github.com/tundealabi-dev",
+            profileImageRes = R.drawable.free_tunde_profile_1782286362286,
+            portfolioImages = listOf(R.drawable.work_tunde_design_1782286422859),
+            skills = listOf("Software development", "Engineering", "Software", "Android", "Kotlin", "Flutter", "Firebase", "API Development")
         ),
         FreelancerProfile(
             id = "freelance-2",
@@ -49,7 +55,7 @@ class MockGraphQLClient(
             rating = 4.9,
             basePrice = 15000.0,
             bio = "Transforming standard spaces into spectacular African art experiences. Specializes in luxury lighting design, Ankara floral palettes, and catering orchestration.",
-            category = "Event Prep",
+            category = "Creative arts",
             portfolioGallery = listOf(
                 "Eko Hotel Grand Hall Velvet Gala Setup 🥂",
                 "Tech & Suya Networking Night Lighting Scheme 🔌",
@@ -61,7 +67,12 @@ class MockGraphQLClient(
             ),
             reviews = listOf(
                 FreelancerReview(reviewerName = "Tinuola E.", rating = 5, comment = "Organized our food festival flawlessly. Saved us ₦50,000 on vendor negotiations!")
-            )
+            ),
+            linkedinUrl = "https://linkedin.com/in/kemiadebayo-events",
+            githubUrl = "https://github.com/kemiadebayo-visuals",
+            profileImageRes = R.drawable.free_kemi_profile_1782286378202,
+            portfolioImages = listOf(R.drawable.work_kemi_design_1782286437982),
+            skills = listOf("Creative arts", "Business", "Event Planning", "Logistics", "Floral Design", "Vendor Management")
         ),
         FreelancerProfile(
             id = "freelance-3",
@@ -71,7 +82,7 @@ class MockGraphQLClient(
             rating = 4.7,
             basePrice = 8500.0,
             bio = "Gourmet African Fusion Chef. Dedicated to traditional taste with a contemporary plated presentation. Maker of the Lagos Seafood Jollof Volcano.",
-            category = "Catering",
+            category = "Creative arts",
             portfolioGallery = listOf(
                 "Plated Spicy Octopus Jollof Bowl 🐙",
                 "Gourmet Suya Beef Slider Towers 🍔",
@@ -83,7 +94,12 @@ class MockGraphQLClient(
             ),
             reviews = listOf(
                 FreelancerReview(reviewerName = "Wale Landmark", rating = 4, comment = "Seafood platter was spectacular, but delivery to Gbagada was nearly 20 mins slow. Great taste though!")
-            )
+            ),
+            linkedinUrl = "https://linkedin.com/in/chef-chidi-okafor",
+            githubUrl = "https://github.com/chefchidi",
+            profileImageRes = R.drawable.free_chidi_profile_1782286392715,
+            portfolioImages = listOf(R.drawable.work_chidi_design_1782286453462),
+            skills = listOf("Creative arts", "Catering", "Cooking", "Menu Design", "Food Styling")
         ),
         FreelancerProfile(
             id = "freelance-4",
@@ -93,7 +109,7 @@ class MockGraphQLClient(
             rating = 4.6,
             basePrice = 9000.0,
             bio = "Capturing rich expressions and hyper-modern African aesthetics. Highly experienced with local content direction, cinematography, and social media flyers.",
-            category = "Creative Arts",
+            category = "Creative arts",
             portfolioGallery = listOf(
                 "Eko Atlantic City Aerial Cinematic Drone Reel 🛸",
                 "Yanga Vibes Festival Midnight Teaser 🎆",
@@ -105,7 +121,67 @@ class MockGraphQLClient(
             ),
             reviews = listOf(
                 FreelancerReview(reviewerName = "Bisi Alaba", rating = 5, comment = "Delivered the video in just 24 hours. Incredible speed!")
-            )
+            ),
+            linkedinUrl = "https://linkedin.com/in/eniolasilva-creative",
+            githubUrl = "https://github.com/eniolasilva-design",
+            profileImageRes = R.drawable.free_eniola_profile_1782286406983,
+            portfolioImages = listOf(R.drawable.work_eniola_design_1782286468910),
+            skills = listOf("Creative arts", "Videography", "Photography", "Branding", "Video Editing", "Content Direction")
+        ),
+        FreelancerProfile(
+            id = "freelance-5",
+            name = "Ngozi Egwu",
+            title = "Expert Data Entry & Printing Specialist",
+            avatarEmoji = "👩‍💼",
+            rating = 4.95,
+            basePrice = 4500.0,
+            bio = "Fast, detail-oriented typist and document processing expert. Excels at high-volume data entry, complex typing, physical printing coordination, and virtual office administration.",
+            category = "Business",
+            portfolioGallery = listOf(
+                "Interactive CSV/Excel Sales Dashboard spreadsheet 📊",
+                "Structured Invoice Templates and Printing Formats 📄",
+                "Virtual Assistant Workspace & Task Checklist ⏱️"
+            ),
+            serviceListings = listOf(
+                "Data entry and clean-up of up to 5,000 rows (2 Days)",
+                "Professional document typing, formatting, and high-quality printing (1 Day)"
+            ),
+            reviews = listOf(
+                FreelancerReview(reviewerName = "Wale Alausa", rating = 5, comment = "Exceptional speed! Ngozi completed 4,000 data rows of survey entries in a single night with zero typos."),
+                FreelancerReview(reviewerName = "Tinuola E.", rating = 5, comment = "Superb document printing formatting. Everything was perfectly customized.")
+            ),
+            linkedinUrl = "https://linkedin.com/in/ngozi-egwu-admin",
+            githubUrl = "https://github.com/ngoziegwu",
+            profileImageRes = R.drawable.free_ngozi_profile_1782289675589,
+            portfolioImages = listOf(R.drawable.work_ngozi_design_1782289705653),
+            skills = listOf("Business", "Data entry", "Typing", "Printing", "Excel", "Office Admin", "Database Management")
+        ),
+        FreelancerProfile(
+            id = "freelance-6",
+            name = "Babajide Cole",
+            title = "Full-Stack Software Engineer & Technical Writer",
+            avatarEmoji = "👨‍💻",
+            rating = 4.85,
+            basePrice = 11000.0,
+            bio = "Versatile software developer and data systems engineer. Specializes in robust Python/Kotlin backend development, Markdown technical documentation, and complex spreadsheet data entry automation.",
+            category = "Engineering",
+            portfolioGallery = listOf(
+                "Automated Data Entry Script & CSV Sync Service ⚙️",
+                "Interactive API Technical documentation 📖",
+                "Microservice Deployment Config 🐳"
+            ),
+            serviceListings = listOf(
+                "Custom Python automated data scraping and spreadsheet data entry (3 Days)",
+                "Technical architecture documentation typing and formatting (2 Days)"
+            ),
+            reviews = listOf(
+                FreelancerReview(reviewerName = "Kola Ikeja", rating = 5, comment = "Highly professional software development! Cole helped automate our inventory data entry pipeline perfectly.")
+            ),
+            linkedinUrl = "https://linkedin.com/in/babajide-cole-tech",
+            githubUrl = "https://github.com/babajidecole",
+            profileImageRes = R.drawable.free_jide_profile_1782289691251,
+            portfolioImages = listOf(R.drawable.work_jide_design_1782289720120),
+            skills = listOf("Software", "Engineering", "Software development", "Data entry", "Python", "Automation", "Typing")
         )
     )
 
@@ -141,39 +217,152 @@ class MockGraphQLClient(
     )
 
     val retailShopsCatalog = listOf(
-        RetailShop(name = "Balogun Fashion World", specialty = "Fashion & Attire", distanceKm = 1.2, items = listOf(
+        RetailShop(name = "Choice Supermarket", specialty = "Supermarket", distanceKm = 0.8, items = listOf(
+            RetailItem(name = "Premium Basmati Rice 5kg", price = 8500.0, category = "Groceries"),
+            RetailItem(name = "Whole Milk Pack (6 Carton)", price = 4800.0, category = "Dairy"),
+            RetailItem(name = "Yanga Butter Cookies Box", price = 1200.0, category = "Snacks"),
+            RetailItem(name = "Fresh Chocolate Spread", price = 2500.0, category = "Pantry")
+        )),
+        RetailShop(name = "Mega Plaza Supermarket", specialty = "Supermarket", distanceKm = 1.9, items = listOf(
+            RetailItem(name = "Golden Penny Spaghetti Pack", price = 950.0, category = "Groceries"),
+            RetailItem(name = "Liquid Handwash Refill 500ml", price = 1100.0, category = "Household"),
+            RetailItem(name = "Yanga Groundnut Oil 3L", price = 6200.0, category = "Groceries")
+        )),
+        RetailShop(name = "Good Fashion World", specialty = "Fashion & Attire", distanceKm = 1.2, items = listOf(
             RetailItem(name = "Ankara Playful Summer Dress", price = 4500.0, category = "Clothing"),
             RetailItem(name = "Custom Velvet Agbada Set", price = 18500.0, category = "Luxury"),
-            RetailItem(name = "Yanga Custom Purple Socks", price = 800.0, category = "Accessories")
+            RetailItem(name = "Yanga Custom Purple Socks", price = 800.0, category = "Accessories"),
+            RetailItem(name = "Urban Retro Vintage Jacket", price = 9500.0, category = "Clothing")
         )),
-        RetailShop(name = "Alaba Tech Gadgets Hub", specialty = "Electronics", distanceKm = 3.6, items = listOf(
+        RetailShop(name = "Alaba Tech", specialty = "Electronics & Gear", distanceKm = 3.6, items = listOf(
             RetailItem(name = "Playful LED RGB Headphones", price = 12000.0, category = "Audio"),
             RetailItem(name = "10000mAh Compact Powerbank", price = 6500.0, category = "Power"),
             RetailItem(name = "USB-C Braided Fast Charger", price = 2500.0, category = "Cables")
         )),
-        RetailShop(name = "Mega Rite Supermarket", specialty = "Groceries & Kitchen", distanceKm = 0.5, items = listOf(
-            RetailItem(name = "Yanga Premium Chocolate Bark", price = 2200.0, category = "Snack"),
-            RetailItem(name = "1kg Long Grain Parboiled Rice", price = 3400.0, category = "Pantry"),
-            RetailItem(name = "Fresh Organic Coconut Oil", price = 1800.0, category = "Kitchen")
+        RetailShop(name = "Gadget Hub", specialty = "Smart Wearables", distanceKm = 0.5, items = listOf(
+            RetailItem(name = "Yanga Smart Sports Watch", price = 24000.0, category = "Wearables"),
+            RetailItem(name = "Locate-It Bluetooth Tracker Tag", price = 3400.0, category = "Essential"),
+            RetailItem(name = "Super Multi-Device Fast Wall Plug", price = 5000.0, category = "Chargers")
         ))
     )
 
     val eventCatalog = listOf(
-        Event(title = "Yanga Vibes Festival & Concert", host = "Yanga Entertainment", date = "June 25, 2026", time = "18:00", venue = "Eko Atlantic, VI", price = 5000.0, rsvpCount = 284),
-        Event(title = "Tech & Suya Networking Night", host = "Lagos Techies Cohort", date = "June 29, 2026", time = "17:30", venue = "The Zone Tech Hub, Gbagada", price = 0.0, rsvpCount = 145),
-        Event(title = "Culinary African Food Expo 2026", host = "Chow Chefs Initiative", date = "July 03, 2026", time = "11:00", venue = "Landmark Centre, Victoria Island", price = 2500.0, rsvpCount = 92)
+        Event(
+            title = "Yanga Vibes Festival & Concert",
+            host = "Yanga Entertainment",
+            date = "June 25, 2026",
+            time = "18:00",
+            venue = "Eko Atlantic, VI",
+            price = 5000.0,
+            rsvpCount = 284,
+            details = "Get ready for the biggest night of pure African energy, live music, and incredible live performances at Eko Atlantic! The Yanga Vibes Festival brings together the best young artists, blazing stage setups under Lagos night skies, and beautiful fashion. Don't miss out on the ultimate urban music experience!",
+            hasFood = true,
+            hasCompetition = true,
+            imageResName = "img_event_festival_1782134258914"
+        ),
+        Event(
+            title = "Tech & Suya Networking Night",
+            host = "Lagos Techies Cohort",
+            date = "June 29, 2026",
+            time = "17:30",
+            venue = "The Zone Tech Hub, Gbagada",
+            price = 0.0,
+            rsvpCount = 145,
+            details = "Unwind and plug into the pulsing Lagos tech ecosystem over freshly grilled, spicy suya and cold drinks! Connect with stellar founders, tech talents, web designers, and developers. Participate in rapid startup pitches, casual fireside chats, and coding trivia battles for amazing tech packs.",
+            hasFood = true,
+            hasCompetition = true,
+            imageResName = "img_event_tech_1782134273337"
+        ),
+        Event(
+            title = "Culinary African Food Expo 2026",
+            host = "Chow Chefs Initiative",
+            date = "July 03, 2026",
+            time = "11:00",
+            venue = "Landmark Centre, Victoria Island",
+            price = 2500.0,
+            rsvpCount = 92,
+            details = "Taste your way across Africa with over 50 cooking stations! The Culinary African Food Expo showcases authentic local delicacies, modern dining experiments, and spices from west to east Africa. Featuring live chef masterclasses, spicy pepper soup drinking challenges, and live food art installations.",
+            hasFood = true,
+            hasCompetition = true,
+            imageResName = "img_event_food_1782134287848"
+        )
     )
 
     val hospitalCatalog = listOf(
-        Hospital(name = "St. Nicholas Premium Hospital", location = "Campus Square, Lagos Island", distanceKm = 1.1, specialties = listOf("General Wellness", "Pediatrics", "Post-natal Diagnostics", "Cardiology")),
-        Hospital(name = "Reddington Multi-Specialist Clinic", location = "Adetokunbo Ademola St, VI", distanceKm = 2.4, specialties = listOf("Emergency General Medicine", "Dental Surgery", "Advanced Ultrasound Lab")),
-        Hospital(name = "Evercare Hospital Lekki", location = "Lekki Phase 1, Lagos", distanceKm = 4.8, specialties = listOf("MRI & Lab Radiography", "Immunization", "Ophthalmology"))
+        Hospital(name = "St. Nicholas Premium Hospital", location = "Campus Square, Lagos Island LGA", distanceKm = 1.1, specialties = listOf("General Practitioner", "Pediatrician (Child Specialist)", "Cardiologist (Heart Doctor)", "Gynecologist (Maternity)")),
+        Hospital(name = "Reddington Multi-Specialist Clinic", location = "Adetokunbo Ademola St, Victoria Island (Eti-Osa LGA)", distanceKm = 2.4, specialties = listOf("General Practitioner", "Dentist (Dental Surgery)", "Gynecologist (Maternity)", "Pediatrician")),
+        Hospital(name = "Evercare Hospital Lekki", location = "Lekki Phase 1, Lekki (Eti-Osa LGA)", distanceKm = 4.8, specialties = listOf("Optician (Eye Care)", "Pediatrician (Child Specialist)", "General Practitioner")),
+        Hospital(name = "Ikeja Medical Center", location = "11 Toyin St, Ikeja LGA", distanceKm = 7.5, specialties = listOf("General Practitioner", "Dentist", "Optician (Eye Care)", "Pediatrician (Child Specialist)", "Gynecologist (Maternity)"))
     )
 
     val restaurantCatalog = listOf(
-        Restaurant(name = "The Playful Pepper Lounge", cuisine = "Contemporary African Fusion", rating = 4.7, address = "Akin Adesola St, VI", tablePrice = 1500.0),
-        Restaurant(name = "Panda Wok Express", cuisine = "Pan-Asian Style Noodles", rating = 4.2, address = "Lekki Expressway, Phase 1", tablePrice = 2000.0),
-        Restaurant(name = "Bungalow Grill & Pizza", cuisine = "Gourmet Burgers & Italian", rating = 4.5, address = "Adeola Hopewell Street, VI", tablePrice = 1200.0)
+        Restaurant(
+            name = "Yanga Golden Crumb Bakery",
+            cuisine = "Bakery",
+            rating = 4.8,
+            address = "Herbert Macaulay Way, Yaba",
+            tablePrice = 0.0,
+            meals = listOf(
+                FoodItem(name = "Freshly Baked Sweet Bread", price = 1000.0, category = "Bakery", description = "Steaming hot local sweet agege-style bread, extremely soft and rich in butter."),
+                FoodItem(name = "Frosted Rainbow Cupcakes (Box of 4)", price = 2400.0, category = "Bakery", description = "Cute, colorful, and playful sweet cupcakes with creamy piping frosting."),
+                FoodItem(name = "Gourmet Meat Pie Combo", price = 1500.0, category = "Bakery", description = "Perfect flaky crust filled with seasoned minced beef, potatoes, and carrots.")
+            ),
+            distanceKm = 1.1
+        ),
+        Restaurant(
+            name = "Sweet Temptations Bakery",
+            cuisine = "Bakery",
+            rating = 4.5,
+            address = "Ademola Alakija Street, VI",
+            tablePrice = 0.0,
+            meals = listOf(
+                FoodItem(name = "Chocolate Croissant Twist", price = 1200.0, category = "Bakery", description = "Crispy laminated french pastry layered with pure premium dark chocolate ganache."),
+                FoodItem(name = "Traditional Warm Cinnamon Roll", price = 1400.0, category = "Bakery", description = "Large, puffy yeast dough roll swirled with high-grade Ceylon cinnamon and sugar glaze.")
+            ),
+            distanceKm = 2.4
+        ),
+        Restaurant(
+            name = "The Playful Pepper Lounge", 
+            cuisine = "Contemporary African Fusion", 
+            rating = 4.7, 
+            address = "Akin Adesola St, VI", 
+            tablePrice = 1500.0,
+            meals = listOf(
+                FoodItem(name = "Jollof Rice & Spicy Chicken", price = 2200.0, category = "Meals", description = "Classic smoky Nigerian Jollof rice served with grilled peppered chicken and plantains."),
+                FoodItem(name = "Pounded Yam with Egusi Soup", price = 2800.0, category = "Traditional", description = "Classic heavy pounded yam paste served with rich Egusi soup with assorted meat."),
+                FoodItem(name = "Peppered Gizzard & Plantains", price = 2400.0, category = "Naija Bites", description = "Delectable spicy gizzard chunks folded in caramelized onions and fried plantains."),
+                FoodItem(name = "Spicy Snail Delicacy", price = 3200.0, category = "Naija Bites", description = "Giant forest snails braised in high-heat habanero and sweet bell pepper sauce.")
+            ),
+            distanceKm = 0.8
+        ),
+        Restaurant(
+            name = "Panda Wok Express", 
+            cuisine = "Pan-Asian Style Noodles", 
+            rating = 4.2, 
+            address = "Lekki Expressway, Phase 1", 
+            tablePrice = 2000.0,
+            meals = listOf(
+                FoodItem(name = "Spicy Shredded Beef Noodles", price = 3100.0, category = "Noodles", description = "Hand-pulled wheat noodles tossed with spicy strips of beef and organic spring onions."),
+                FoodItem(name = "Szechuan Vegetable Fried Rice", price = 2600.0, category = "Rice", description = "Aromatic wok-fried rice cooked with traditional fiery Szechuan chili crunch paste."),
+                FoodItem(name = "Sweet & Sour Crispy Prawns", price = 3800.0, category = "Seafood", description = "Succulent ocean jumbo prawns fried crispy and glazed in a rich tangy red glaze."),
+                FoodItem(name = "Dumplings & Chili Oil Hot-Pot", price = 1800.0, category = "Dim Sum", description = "Delicate steamed chicken dumplings served sitting in heated house-special Sichuan chili oil.")
+            ),
+            distanceKm = 2.1
+        ),
+        Restaurant(
+            name = "Bungalow Grill & Pizza", 
+            cuisine = "Gourmet Burgers & Italian", 
+            rating = 4.5, 
+            address = "Adeola Hopewell Street, VI", 
+            tablePrice = 1200.0,
+            meals = listOf(
+                FoodItem(name = "Gourmet Suya Pizza (Large)", price = 5800.0, category = "Pizza", description = "Thin-crust sourdough pizza loaded with spicy dry-rub beef suya, red onions, and local chili."),
+                FoodItem(name = "Flame-Grilled Cheese Burger", price = 2500.0, category = "Burgers", description = "Smoky beef patty with double Cheddar cheese, house-pickled cucumbers and onion jam."),
+                FoodItem(name = "BBQ Chicken Wings & Fries", price = 3300.0, category = "Grill", description = "Six pieces of hickory-smoked chicken wings smothered in authentic sticky sweet barbecue marinade."),
+                FoodItem(name = "Creamy Chicken Alfredo Pasta", price = 4200.0, category = "Pasta", description = "Rich Parmigiano-Reggiano sauce with pan-fried chicken breast, garlic, and fresh Italian parsley.")
+            ),
+            distanceKm = 1.6
+        )
     )
 
     val quotesCatalog = listOf(
@@ -224,7 +413,8 @@ class MockGraphQLClient(
             normQuery.contains("mutation PostVibe") -> {
                 val author = (request.variables["author"] as? String) ?: "AnonymousViber"
                 val content = (request.variables["content"] as? String) ?: "Empty Vibe"
-                handlePostVibeMutation(author, content)
+                val attachedPhoto = request.variables["attachedPhoto"] as? String
+                handlePostVibeMutation(author, content, attachedPhoto)
             }
             normQuery.contains("mutation ReactionVibe") -> {
                 val postId = (request.variables["id"] as? String) ?: ""
@@ -410,7 +600,7 @@ class MockGraphQLClient(
         }
     }
 
-    private suspend fun handlePostVibeMutation(author: String, content: String): GraphQLResponse<Any> {
+    private suspend fun handlePostVibeMutation(author: String, content: String, attachedPhoto: String?): GraphQLResponse<Any> {
         val id = UUID.randomUUID().toString()
         val vibeEntity = VibePostEntity(
             id = id,
@@ -419,7 +609,8 @@ class MockGraphQLClient(
             vibeCount = 0,
             isVibeChecked = false,
             timestamp = System.currentTimeMillis(),
-            commentsJson = "[]"
+            commentsJson = "[]",
+            attachedPhoto = attachedPhoto
         )
         database.vibePostDao().insertVibePost(vibeEntity)
         return successResponse(vibeEntity)

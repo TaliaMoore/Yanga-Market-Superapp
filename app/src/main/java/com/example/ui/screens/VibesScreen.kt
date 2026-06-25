@@ -1,10 +1,16 @@
 package com.example.ui.screens
 
+import androidx.compose.animation.core.*
+import androidx.compose.foundation.Image
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import coil.compose.AsyncImage
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -12,34 +18,29 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.animation.core.*
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
 import com.example.ui.MainViewModel
 import com.example.ui.components.*
 import com.example.ui.theme.CharcoalBlack
 import com.example.ui.theme.HeartRed
 import com.example.ui.theme.PrimaryPurple
 import com.example.ui.theme.SecondaryYellow
-import com.example.data.network.WebSocketState
-import com.example.data.network.WebSocketFrame
-import com.example.data.network.SafeVibeMessage
-import androidx.compose.foundation.lazy.LazyRow
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -47,13 +48,26 @@ import java.util.Locale
 @Composable
 fun VibesScreen(
     viewModel: MainViewModel,
+    onNavigateToDetails: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val posts by viewModel.vibePosts.collectAsState()
     val authorInput by viewModel.vibeAuthorInput.collectAsState()
     val contentInput by viewModel.vibeContentInput.collectAsState()
-    val wsState by viewModel.webSocketStatus.collectAsState()
-    val wsLogs by viewModel.webSocketLogs.collectAsState()
+    val globalUserName by viewModel.userName.collectAsState()
+    val selectedPhoto by viewModel.vibeAttachedPhotoInput.collectAsState()
+    val groups by viewModel.discussionGroups.collectAsState()
+
+    var showCreateGroupDialog by remember { mutableStateOf(false) }
+    var selectedTagCircle by remember { mutableStateOf<String?>(null) }
+
+    val imagePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri ->
+        if (uri != null) {
+            viewModel.selectAttachedPhoto(uri.toString())
+        }
+    }
 
     LazyColumn(
         modifier = modifier
@@ -65,7 +79,7 @@ fun VibesScreen(
         item {
             YangaHeader(
                 title = "Let’s Share Vibes! 📣💜",
-                subtitle = "Read, upvote and broadcast thoughts with fellow Yanga Market super-citizens",
+                subtitle = "Reddit-style community groups, instant answers, and live discussions with fellow super-citizens",
                 icon = Icons.Default.Campaign
             )
         }
@@ -75,25 +89,155 @@ fun VibesScreen(
             YangaCommunityMarqueeBanner()
         }
 
-        // --- WebSocket Interactive Connection Settings & Console Tracer ---
+        // --- DISCUSSION GROUPS SECTION (REDDIT/QUORA STYLE) ---
         item {
-            val activeThreads by viewModel.activeThreads.collectAsState()
-            val registeredThreadUsers by viewModel.registeredThreadUsers.collectAsState()
-
-            YangaWebSocketConsole(
-                wsState = wsState,
-                wsLogs = wsLogs,
-                activeThreads = activeThreads,
-                registeredThreadUsers = registeredThreadUsers,
-                onConnect = { viewModel.connectWebSocket() },
-                onDisconnect = { viewModel.disconnectWebSocket() },
-                onCreateThread = { title, desc ->
-                    viewModel.triggerCreatedThread(authorInput.ifBlank { "UnsignedCitizen" }, title, desc)
-                },
-                onAddUser = { threadId, userId, status ->
-                    viewModel.triggerAddedUserToThread(threadId, userId, authorInput.ifBlank { "UnsignedCitizen" }, status)
+            Column(modifier = Modifier.fillMaxWidth()) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Discussion Circles & Channels 📡",
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Black,
+                        color = PrimaryPurple
+                    )
+                    Text(
+                        text = "Join & Post",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = CharcoalBlack.copy(alpha = 0.5f)
+                    )
                 }
-            )
+                Spacer(modifier = Modifier.height(8.dp))
+
+                LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    items(groups, key = { it.id }) { group ->
+                        Card(
+                            shape = RoundedCornerShape(16.dp),
+                            colors = CardDefaults.cardColors(
+                                containerColor = if (group.isJoined) Color(0xFFF9F7FE) else Color.White
+                            ),
+                            modifier = Modifier
+                                .width(220.dp)
+                                .border(
+                                    2.dp, 
+                                    if (group.isJoined) PrimaryPurple else PrimaryPurple.copy(alpha = 0.15f), 
+                                    RoundedCornerShape(16.dp)
+                                )
+                        ) {
+                            Column(modifier = Modifier.padding(12.dp)) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = "#${group.name}",
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.Black,
+                                        color = PrimaryPurple,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                    Box(
+                                        modifier = Modifier
+                                            .background(SecondaryYellow, RoundedCornerShape(6.dp))
+                                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                                    ) {
+                                        Text(
+                                            text = group.category.uppercase(),
+                                            fontSize = 8.sp,
+                                            fontWeight = FontWeight.Black,
+                                            color = CharcoalBlack
+                                        )
+                                    }
+                                }
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = group.description,
+                                    fontSize = 10.sp,
+                                    color = CharcoalBlack.copy(alpha = 0.7f),
+                                    lineHeight = 13.sp,
+                                    maxLines = 3,
+                                    overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.height(40.dp)
+                                )
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = "👥 ${group.memberCount} members",
+                                        fontSize = 9.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = CharcoalBlack.copy(alpha = 0.5f)
+                                    )
+                                    Box(
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(8.dp))
+                                            .background(if (group.isJoined) PrimaryPurple.copy(alpha = 0.1f) else SecondaryYellow)
+                                            .clickable { viewModel.toggleJoinGroup(group.id) }
+                                            .padding(horizontal = 10.dp, vertical = 5.dp)
+                                    ) {
+                                        Text(
+                                            text = if (group.isJoined) "Joined ✓" else "Join 👥",
+                                            fontSize = 9.sp,
+                                            fontWeight = FontWeight.Black,
+                                            color = if (group.isJoined) PrimaryPurple else CharcoalBlack
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // Card to prompt group creation
+                    item {
+                        Card(
+                            shape = RoundedCornerShape(16.dp),
+                            colors = CardDefaults.cardColors(containerColor = Color.White),
+                            modifier = Modifier
+                                .width(160.dp)
+                                .border(2.dp, SecondaryYellow, RoundedCornerShape(16.dp))
+                                .clickable { showCreateGroupDialog = true }
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .padding(16.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.Center
+                            ) {
+                                Text("📣", fontSize = 28.sp)
+                                Spacer(modifier = Modifier.height(6.dp))
+                                Text(
+                                    text = "Start a Group",
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Black,
+                                    color = PrimaryPurple,
+                                    textAlign = TextAlign.Center
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = "Launch a Reddit-style custom discussion channel",
+                                    fontSize = 9.sp,
+                                    color = CharcoalBlack.copy(alpha = 0.6f),
+                                    textAlign = TextAlign.Center,
+                                    lineHeight = 12.sp
+                                )
+                            }
+                        }
+                    }
+                }
+            }
         }
 
         // --- Create Post Panel ---
@@ -110,31 +254,134 @@ fun VibesScreen(
             ) {
                 Spacer(modifier = Modifier.height(2.dp))
                 
-                // Author input handle
-                OutlinedTextField(
-                    value = authorInput,
-                    onValueChange = { viewModel.updateVibeInputs(author = it, content = null) },
-                    label = { Text("Your Handle / Pseudo") },
-                    placeholder = { Text("e.g. tunde_yanga") },
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = PrimaryPurple,
-                        focusedLabelColor = PrimaryPurple,
-                    ),
-                    shape = RoundedCornerShape(10.dp),
-                    leadingIcon = {
-                        Icon(imageVector = Icons.Default.AlternateEmail, contentDescription = null, tint = PrimaryPurple, modifier = Modifier.size(16.dp))
-                    },
-                    modifier = Modifier.fillMaxWidth().testTag("vibe_author_input"),
-                    singleLine = true
-                )
-                Spacer(modifier = Modifier.height(8.dp))
+                // Author handle recognition
+                if (globalUserName.isNotBlank()) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(PrimaryPurple.copy(alpha = 0.05f), RoundedCornerShape(8.dp))
+                            .padding(horizontal = 10.dp, vertical = 8.dp)
+                    ) {
+                        Text(
+                            text = "✍️ Posting as: ",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = CharcoalBlack
+                        )
+                        Text(
+                            text = "@$globalUserName",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Black,
+                            color = PrimaryPurple
+                        )
+                        Spacer(modifier = Modifier.weight(1f))
+                        Text(
+                            text = "✓ Synced",
+                            fontSize = 10.sp,
+                            color = Color(0xFF16A34A),
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                } else {
+                    // Tell them to set handle or type a temporary one
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(SecondaryYellow.copy(alpha = 0.15f), RoundedCornerShape(8.dp))
+                            .padding(8.dp)
+                    ) {
+                        Text(
+                            text = "💡 Pro-Tip: Go to your Profile page (labeled Profile tab below) and save your username handle so it fills in automatically next time!",
+                            fontSize = 10.sp,
+                            color = Color(0xFFB45309),
+                            fontWeight = FontWeight.Bold,
+                            lineHeight = 14.sp
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    OutlinedTextField(
+                        value = authorInput,
+                        onValueChange = { viewModel.updateVibeInputs(author = it, content = null) },
+                        label = { Text("Your Temporary Handle") },
+                        placeholder = { Text("e.g. tunde_yanga") },
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = PrimaryPurple,
+                            focusedLabelColor = PrimaryPurple,
+                        ),
+                        shape = RoundedCornerShape(10.dp),
+                        leadingIcon = {
+                            Icon(imageVector = Icons.Default.AlternateEmail, contentDescription = null, tint = PrimaryPurple, modifier = Modifier.size(16.dp))
+                        },
+                        modifier = Modifier.fillMaxWidth().testTag("vibe_author_input"),
+                        singleLine = true
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
+
+                // Choose a channel to tag (optional)
+                val joinedGroups = groups.filter { it.isJoined }
+                if (joinedGroups.isNotEmpty()) {
+                    Text(
+                        text = "Post inside a Discussion Circle (Optional):",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = CharcoalBlack.copy(alpha = 0.6f)
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    LazyRow(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        item {
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(
+                                        if (selectedTagCircle == null) PrimaryPurple else PrimaryPurple.copy(alpha = 0.05f)
+                                    )
+                                    .clickable { selectedTagCircle = null }
+                                    .padding(horizontal = 10.dp, vertical = 5.dp)
+                            ) {
+                                Text(
+                                    text = "Global Feed 🌍",
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (selectedTagCircle == null) Color.White else PrimaryPurple
+                                )
+                            }
+                        }
+                        items(joinedGroups) { g ->
+                            val isSelected = selectedTagCircle == g.name
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(
+                                        if (isSelected) PrimaryPurple else PrimaryPurple.copy(alpha = 0.05f)
+                                    )
+                                    .clickable { selectedTagCircle = g.name }
+                                    .padding(horizontal = 10.dp, vertical = 5.dp)
+                            ) {
+                                Text(
+                                    text = "#${g.name}",
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (isSelected) Color.White else PrimaryPurple
+                                )
+                            }
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
 
                 // Content input body
                 OutlinedTextField(
                     value = contentInput,
                     onValueChange = { viewModel.updateVibeInputs(author = null, content = it) },
-                    label = { Text("What is happening at Yanga Market today?") },
-                    placeholder = { Text("Tell us! Jollof ratings, event rsvps...") },
+                    label = { Text("What's happening at Yanga Market?") },
+                    placeholder = { Text("Write your query, debate, suggestion or updates here...") },
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = PrimaryPurple,
                         focusedLabelColor = PrimaryPurple,
@@ -145,12 +392,204 @@ fun VibesScreen(
                         .height(85.dp)
                         .testTag("vibe_body_input")
                 )
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // PHOTO ATTACHMENT BOX
+                Text(
+                    text = "Attach a beautiful Community Snapshot 📸",
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = CharcoalBlack.copy(alpha = 0.6f)
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+
+                val context = LocalContext.current
+                val photos = listOf(
+                    "img_event_festival_1782134258914" to "🎪 Festival",
+                    "img_event_tech_1782134273337" to "💻 Tech Suya",
+                    "img_food_jollof" to "🍛 Jollof",
+                    "img_food_suya_burger" to "🍔 Burger"
+                )
+
+                LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    // Option to attach custom file from device
+                    item {
+                        val isCustomFileSelected = selectedPhoto != null && !photos.any { it.first == selectedPhoto }
+                        Card(
+                            shape = RoundedCornerShape(8.dp),
+                            modifier = Modifier
+                                .width(90.dp)
+                                .height(65.dp)
+                                .border(
+                                    if (isCustomFileSelected) 3.dp else 1.dp,
+                                    if (isCustomFileSelected) PrimaryPurple else Color.LightGray,
+                                    RoundedCornerShape(8.dp)
+                                )
+                                .clickable {
+                                    imagePickerLauncher.launch("image/*")
+                                }
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .background(Color(0xFFF3F4F6)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                if (isCustomFileSelected && selectedPhoto != null) {
+                                    AsyncImage(
+                                        model = selectedPhoto,
+                                        contentDescription = "Custom attached file",
+                                        contentScale = ContentScale.Crop,
+                                        modifier = Modifier.fillMaxSize()
+                                    )
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .align(Alignment.BottomCenter)
+                                            .background(Color.Black.copy(alpha = 0.5f))
+                                            .padding(vertical = 2.dp)
+                                    ) {
+                                        Text(
+                                            text = "Attached ✓",
+                                            fontSize = 8.sp,
+                                            fontWeight = FontWeight.Black,
+                                            color = Color.White,
+                                            modifier = Modifier.fillMaxWidth(),
+                                            textAlign = TextAlign.Center
+                                        )
+                                    }
+                                    Box(
+                                        modifier = Modifier
+                                            .size(16.dp)
+                                            .background(PrimaryPurple, CircleShape)
+                                            .align(Alignment.TopEnd)
+                                            .padding(2.dp),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(imageVector = Icons.Default.Check, contentDescription = null, tint = Color.White, modifier = Modifier.size(10.dp))
+                                    }
+                                } else {
+                                    Column(
+                                        horizontalAlignment = Alignment.CenterHorizontally,
+                                        verticalArrangement = Arrangement.Center,
+                                        modifier = Modifier.padding(4.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.AttachFile,
+                                            contentDescription = "Attach custom file",
+                                            tint = PrimaryPurple,
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                        Spacer(modifier = Modifier.height(2.dp))
+                                        Text(
+                                            text = "Device File",
+                                            fontSize = 8.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = PrimaryPurple,
+                                            textAlign = TextAlign.Center
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    items(photos) { (resName, label) ->
+                        val isSelected = selectedPhoto == resName
+                        val drawableId = context.resources.getIdentifier(resName, "drawable", context.packageName)
+                        Card(
+                            shape = RoundedCornerShape(8.dp),
+                            modifier = Modifier
+                                .width(90.dp)
+                                .height(65.dp)
+                                .border(
+                                    if (isSelected) 3.dp else 1.dp,
+                                    if (isSelected) PrimaryPurple else Color.LightGray,
+                                    RoundedCornerShape(8.dp)
+                                )
+                                .clickable {
+                                    if (isSelected) {
+                                        viewModel.selectAttachedPhoto(null)
+                                    } else {
+                                        viewModel.selectAttachedPhoto(resName)
+                                    }
+                                }
+                        ) {
+                            Box(modifier = Modifier.fillMaxSize()) {
+                                if (drawableId != 0) {
+                                    Image(
+                                        painter = painterResource(id = drawableId),
+                                        contentDescription = label,
+                                        contentScale = ContentScale.Crop,
+                                        modifier = Modifier.fillMaxSize()
+                                    )
+                                }
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .align(Alignment.BottomCenter)
+                                        .background(Color.Black.copy(alpha = 0.5f))
+                                        .padding(vertical = 2.dp)
+                                ) {
+                                    Text(
+                                        text = label,
+                                        fontSize = 8.sp,
+                                        fontWeight = FontWeight.Black,
+                                        color = Color.White,
+                                        modifier = Modifier.fillMaxWidth(),
+                                        textAlign = TextAlign.Center
+                                    )
+                                }
+                                if (isSelected) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(16.dp)
+                                            .background(PrimaryPurple, CircleShape)
+                                            .align(Alignment.TopEnd)
+                                            .padding(2.dp),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(imageVector = Icons.Default.Check, contentDescription = null, tint = Color.White, modifier = Modifier.size(10.dp))
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                if (selectedPhoto != null) {
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        modifier = Modifier.clickable { viewModel.selectAttachedPhoto(null) }
+                    ) {
+                        Icon(imageVector = Icons.Default.Close, contentDescription = "Clear", tint = HeartRed, modifier = Modifier.size(14.dp))
+                        Text("Remove Image Attachment", fontSize = 10.sp, color = HeartRed, fontWeight = FontWeight.Bold)
+                    }
+                }
+
                 Spacer(modifier = Modifier.height(10.dp))
 
                 // Submit button
                 YangaFunButton(
                     text = "Share Vibe Now 📣",
-                    onClick = { viewModel.submitVibe() },
+                    onClick = {
+                        val finalContent = if (selectedTagCircle != null) {
+                            "$contentInput #${selectedTagCircle}"
+                        } else contentInput
+
+                        if (globalUserName.isBlank() && authorInput.trim().isBlank()) {
+                            viewModel.postError("Please type your name or save your username in the Profile tab!")
+                        } else {
+                            viewModel.updateVibeInputs(author = null, content = finalContent)
+                            viewModel.submitVibe()
+                            selectedTagCircle = null
+                        }
+                    },
                     modifier = Modifier.fillMaxWidth(),
                     testTagStr = "vibe_submit_btn"
                 )
@@ -192,7 +631,106 @@ fun VibesScreen(
             }
         } else {
             items(posts, key = { it.id }) { post ->
-                VibePostRow(post = post, onReaction = { viewModel.voteVibePost(post.id) })
+                val repliesCount = viewModel.parseComments(post.commentsJson).size
+                VibePostRow(
+                    post = post,
+                    repliesCount = repliesCount,
+                    onReaction = { viewModel.voteVibePost(post.id) },
+                    onClick = { onNavigateToDetails(post.id) },
+                    onBoost = { viewModel.boostVibeLikes(post.id) }
+                )
+            }
+        }
+    }
+
+    // --- POPUP DIALOG TO CREATE NEW CHANNELS ---
+    if (showCreateGroupDialog) {
+        var newGroupName by remember { mutableStateOf("") }
+        var newGroupDesc by remember { mutableStateOf("") }
+        var newGroupCat by remember { mutableStateOf("General") }
+
+        Dialog(onDismissRequest = { showCreateGroupDialog = false }) {
+            Card(
+                shape = RoundedCornerShape(20.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .border(2.5.dp, PrimaryPurple, RoundedCornerShape(20.dp)),
+                colors = CardDefaults.cardColors(containerColor = Color.White)
+            ) {
+                Column(
+                    modifier = Modifier
+                        .padding(20.dp)
+                        .fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                ) {
+                    Text(
+                        text = "Create Discussion Circle 📣",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Black,
+                        color = PrimaryPurple
+                    )
+
+                    OutlinedTextField(
+                        value = newGroupName,
+                        onValueChange = { newGroupName = it },
+                        label = { Text("Circle Name (e.g. tech-suya-night)") },
+                        placeholder = { Text("use-hyphens-only") },
+                        singleLine = true,
+                        shape = RoundedCornerShape(10.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    OutlinedTextField(
+                        value = newGroupDesc,
+                        onValueChange = { newGroupDesc = it },
+                        label = { Text("Circle Description") },
+                        placeholder = { Text("What are we sharing in here?") },
+                        shape = RoundedCornerShape(10.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    OutlinedTextField(
+                        value = newGroupCat,
+                        onValueChange = { newGroupCat = it },
+                        label = { Text("Category / Tag") },
+                        placeholder = { Text("e.g. Food, Tech, Care, Gossip") },
+                        singleLine = true,
+                        shape = RoundedCornerShape(10.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Button(
+                            onClick = { showCreateGroupDialog = false },
+                            colors = ButtonDefaults.buttonColors(containerColor = Color.White, contentColor = PrimaryPurple),
+                            modifier = Modifier
+                                .weight(1f)
+                                .border(1.5.dp, PrimaryPurple, RoundedCornerShape(10.dp)),
+                            shape = RoundedCornerShape(10.dp)
+                        ) {
+                            Text("Cancel", fontWeight = FontWeight.Bold)
+                        }
+
+                        Button(
+                            onClick = {
+                                if (newGroupName.isNotBlank() && newGroupDesc.isNotBlank()) {
+                                    viewModel.createDiscussionGroup(newGroupName, newGroupDesc, newGroupCat)
+                                    showCreateGroupDialog = false
+                                }
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = SecondaryYellow, contentColor = CharcoalBlack),
+                            modifier = Modifier
+                                .weight(1.5f)
+                                .border(1.5.dp, PrimaryPurple, RoundedCornerShape(10.dp)),
+                            shape = RoundedCornerShape(10.dp)
+                        ) {
+                            Text("Launch Circle 🚀", fontWeight = FontWeight.Black)
+                        }
+                    }
+                }
             }
         }
     }
@@ -201,7 +739,10 @@ fun VibesScreen(
 @Composable
 fun VibePostRow(
     post: com.example.data.database.VibePostEntity,
-    onReaction: () -> Unit
+    repliesCount: Int,
+    onReaction: () -> Unit,
+    onClick: () -> Unit,
+    onBoost: (() -> Unit)? = null
 ) {
     val df = SimpleDateFormat("HH:mm", Locale.getDefault())
     val timeLabel = df.format(Date(post.timestamp))
@@ -211,6 +752,7 @@ fun VibePostRow(
         modifier = Modifier
             .fillMaxWidth()
             .border(2.dp, PrimaryPurple.copy(alpha = 0.35f), RoundedCornerShape(14.dp))
+            .clickable { onClick() }
             .padding(1.dp)
     ) {
         Column(modifier = Modifier.padding(14.dp)) {
@@ -269,6 +811,44 @@ fun VibePostRow(
                 lineHeight = 18.sp
             )
 
+            // Render attached photo if any
+            if (!post.attachedPhoto.isNullOrBlank()) {
+                Spacer(modifier = Modifier.height(10.dp))
+                val isUri = post.attachedPhoto.startsWith("content://") || 
+                             post.attachedPhoto.startsWith("file://") || 
+                             post.attachedPhoto.contains("/")
+
+                if (isUri) {
+                    AsyncImage(
+                        model = post.attachedPhoto,
+                        contentDescription = "Attached photo",
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(140.dp)
+                            .clip(RoundedCornerShape(10.dp))
+                            .border(1.dp, PrimaryPurple.copy(alpha = 0.15f), RoundedCornerShape(10.dp)),
+                        contentScale = ContentScale.Crop
+                    )
+                } else {
+                    val context = LocalContext.current
+                    val drawableId = context.resources.getIdentifier(
+                        post.attachedPhoto, "drawable", context.packageName
+                    )
+                    if (drawableId != 0) {
+                        Image(
+                            painter = painterResource(id = drawableId),
+                            contentDescription = "Attached photo",
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(140.dp)
+                                .clip(RoundedCornerShape(10.dp))
+                                .border(1.dp, PrimaryPurple.copy(alpha = 0.15f), RoundedCornerShape(10.dp)),
+                            contentScale = ContentScale.Crop
+                        )
+                    }
+                }
+            }
+
             Spacer(modifier = Modifier.height(12.dp))
             Divider(color = PrimaryPurple.copy(alpha = 0.1f))
             Spacer(modifier = Modifier.height(8.dp))
@@ -304,20 +884,44 @@ fun VibePostRow(
                 }
 
                 // Sub comments count placeholder
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .clickable { onClick() }
+                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                ) {
                     Icon(
                         imageVector = Icons.Default.Comment,
                         contentDescription = "Comments",
-                        tint = CharcoalBlack.copy(alpha = 0.4f),
+                        tint = PrimaryPurple,
                         modifier = Modifier.size(16.dp)
                     )
-                    Spacer(modifier = Modifier.width(4.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
                     Text(
-                        text = "Reply",
+                        text = "Replies ($repliesCount)",
                         fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = CharcoalBlack.copy(alpha = 0.5f)
+                        fontWeight = FontWeight.Black,
+                        color = PrimaryPurple
                     )
+                }
+
+                if (onBoost != null) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .clickable { onBoost() }
+                            .padding(horizontal = 8.dp, vertical = 4.dp)
+                            .testTag("boost_likes_btn_${post.id}")
+                    ) {
+                        Text(
+                            text = "🚀 Boost Vibes (+100 Checkouts)",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Black,
+                            color = PrimaryPurple
+                        )
+                    }
                 }
             }
         }
@@ -338,7 +942,6 @@ fun YangaCommunityMarqueeBanner(
     }
     val textToShow = remember(announcements) { announcements.joinToString("   •   ") }
 
-    // Infinite transition to continuously update offset coordinate across the container
     val infiniteTransition = rememberInfiniteTransition(label = "marquee")
     val marqueeFraction by infiniteTransition.animateFloat(
         initialValue = 1.1f,
@@ -364,7 +967,6 @@ fun YangaCommunityMarqueeBanner(
                 .padding(vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Static Purple tag on the left
             Box(
                 modifier = Modifier
                     .padding(horizontal = 8.dp)
@@ -380,7 +982,6 @@ fun YangaCommunityMarqueeBanner(
                 )
             }
 
-            // The animated scrolling ticker
             BoxWithConstraints(
                 modifier = Modifier
                     .weight(1f)
@@ -411,405 +1012,3 @@ fun YangaCommunityMarqueeBanner(
         }
     }
 }
-
-@Composable
-fun YangaWebSocketConsole(
-    wsState: WebSocketState,
-    wsLogs: List<String>,
-    activeThreads: List<SafeVibeMessage.CreatedThread>,
-    registeredThreadUsers: List<SafeVibeMessage.AddedUserToThread>,
-    onConnect: () -> Unit,
-    onDisconnect: () -> Unit,
-    onCreateThread: (String, String) -> Unit,
-    onAddUser: (String, String, String) -> Unit,
-    modifier: Modifier = Modifier
-) {
-    var isLogsExpanded by remember { mutableStateOf(true) }
-
-    Card(
-        colors = CardDefaults.cardColors(containerColor = Color(0xFFF9FAFB)),
-        modifier = modifier
-            .fillMaxWidth()
-            .border(2.dp, PrimaryPurple, RoundedCornerShape(14.dp))
-            .testTag("websocket_console_card"),
-        shape = RoundedCornerShape(14.dp)
-    ) {
-        Column(modifier = Modifier.padding(14.dp)) {
-            // Header with title & Expand/Collapse toggle
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.SettingsInputComponent,
-                        contentDescription = "WebSocket settings",
-                        tint = PrimaryPurple,
-                        modifier = Modifier.size(20.dp)
-                    )
-                    Text(
-                        text = "Vibes Live WebSocket Stream",
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Black,
-                        color = CharcoalBlack
-                    )
-                }
-
-                // Expand Collapse Arrow
-                IconButton(
-                    onClick = { isLogsExpanded = !isLogsExpanded },
-                    modifier = Modifier.size(28.dp)
-                ) {
-                    Icon(
-                        imageVector = if (isLogsExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
-                        contentDescription = if (isLogsExpanded) "Collapse" else "Expand",
-                        tint = PrimaryPurple
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = "Two-way live network channels connecting your screen with other Nigerian citizens via event listeners.",
-                fontSize = 11.sp,
-                fontWeight = FontWeight.Medium,
-                color = CharcoalBlack.copy(alpha = 0.6f)
-            )
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            // Two rows: Connection Badges & Control actions
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // Connection Badge Indicator
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    Text(
-                        text = "Status:",
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = CharcoalBlack
-                    )
-                    
-                    val (badgeText, badgeBg, badgeTextClr) = when (wsState) {
-                        WebSocketState.CONNECTED -> Triple("CONNECTED 🟢", Color(0xFFDCFCE7), Color(0xFF15803D))
-                        WebSocketState.CONNECTING -> Triple("CONNECTING 🟡", Color(0xFFFEF9C3), Color(0xFFA16207))
-                        WebSocketState.DISCONNECTED -> Triple("DISCONNECTED 🔴", Color(0xFFFEE2E2), Color(0xFFB91C1C))
-                    }
-
-                    Box(
-                        modifier = Modifier
-                            .background(badgeBg, RoundedCornerShape(6.dp))
-                            .border(1.dp, badgeTextClr.copy(alpha = 0.3f), RoundedCornerShape(6.dp))
-                            .padding(horizontal = 8.dp, vertical = 4.dp)
-                    ) {
-                        Text(
-                            text = badgeText,
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.Black,
-                            color = badgeTextClr
-                        )
-                    }
-                }
-
-                // Control Action Buttons
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    if (wsState == WebSocketState.CONNECTED) {
-                        Button(
-                            onClick = onDisconnect,
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFF3F4F6)),
-                            shape = RoundedCornerShape(8.dp),
-                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
-                            modifier = Modifier
-                                .height(30.dp)
-                                .border(1.dp, Color(0xFFD1D5DB), RoundedCornerShape(8.dp))
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.CloudOff,
-                                contentDescription = "Disconnect",
-                                tint = Color(0xFF374151),
-                                modifier = Modifier.size(12.dp)
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text("Disconnect", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = Color(0xFF374151))
-                        }
-                    } else {
-                        Button(
-                            onClick = onConnect,
-                            colors = ButtonDefaults.buttonColors(containerColor = PrimaryPurple),
-                            shape = RoundedCornerShape(8.dp),
-                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
-                            modifier = Modifier.height(30.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.CloudQueue,
-                                contentDescription = "Connect",
-                                tint = Color.White,
-                                modifier = Modifier.size(12.dp)
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text("Connect Stream", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = Color.White)
-                        }
-                    }
-                }
-            }
-
-            if (isLogsExpanded) {
-                Spacer(modifier = Modifier.height(14.dp))
-
-                // Log Title section
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = "Live Pipe Packet Frame Logs (Interactive)",
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = PrimaryPurple
-                    )
-                    Text(
-                        text = "wss://stream.yanga.live",
-                        fontSize = 9.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = CharcoalBlack.copy(alpha = 0.4f)
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(6.dp))
-
-                // The terminal console shell
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(110.dp)
-                        .background(Color(0xFF1E293B), RoundedCornerShape(8.dp))
-                        .border(1.5.dp, CharcoalBlack, RoundedCornerShape(8.dp))
-                        .padding(8.dp)
-                ) {
-                    if (wsLogs.isEmpty()) {
-                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            Text(
-                                text = "No TCP packets logged yet. Broadcast a message or wait for inbounds!",
-                                color = Color.White.copy(alpha = 0.4f),
-                                fontSize = 9.sp,
-                                textAlign = TextAlign.Center
-                            )
-                        }
-                    } else {
-                        LazyColumn(
-                            modifier = Modifier.fillMaxSize(),
-                            verticalArrangement = Arrangement.spacedBy(4.dp)
-                        ) {
-                            items(wsLogs) { logLine ->
-                                val logColor = when {
-                                    logLine.contains("[CLIENT SEND]") -> Color(0xFFFEF08A)
-                                    logLine.contains("[SERVER RECV]") -> Color(0xFF38BDF8)
-                                    logLine.contains("[SERVER BROADCAST]") || logLine.contains("[CLIENT_RECV_SYNC]") -> Color(0xFF34D399)
-                                    logLine.contains("[CLIENT ERROR]") || logLine.contains("ERROR") -> Color(0xFFF87171)
-                                    else -> Color.White
-                                }
-
-                                Row(
-                                    modifier = Modifier.fillMaxWidth()
-                                ) {
-                                    Text(
-                                        text = logLine,
-                                        fontSize = 9.sp,
-                                        fontWeight = FontWeight.SemiBold,
-                                        color = logColor,
-                                        lineHeight = 12.sp
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-                
-                Spacer(modifier = Modifier.height(14.dp))
-                HorizontalDivider(color = Color(0xFFE5E7EB), thickness = 1.dp)
-                Spacer(modifier = Modifier.height(10.dp))
-
-                // Interactive SafeEmitter Panel
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.OfflineBolt,
-                        contentDescription = "SafeEmitter",
-                        tint = Color(0xFF0F766E),
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Text(
-                        text = "Typesafe SafeEmitter Control Board",
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFF0F766E)
-                    )
-                }
-                Spacer(modifier = Modifier.height(8.dp))
-
-                var testThreadTitle by remember { mutableStateOf("Fuji Music Arena") }
-                var testUserId by remember { mutableStateOf("yoruba_boy") }
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    // Create Thread Panel
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text("Emit CreatedThread", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = CharcoalBlack)
-                        Spacer(modifier = Modifier.height(4.dp))
-                        OutlinedTextField(
-                            value = testThreadTitle,
-                            onValueChange = { testThreadTitle = it },
-                            placeholder = { Text("Title", fontSize = 9.sp) },
-                            singleLine = true,
-                            textStyle = androidx.compose.ui.text.TextStyle(fontSize = 10.sp),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(46.dp),
-                            shape = RoundedCornerShape(8.dp),
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = PrimaryPurple,
-                                unfocusedBorderColor = Color(0xFFD1D5DB)
-                            )
-                        )
-                        Spacer(modifier = Modifier.height(6.dp))
-                        Button(
-                            onClick = {
-                                if (testThreadTitle.isNotBlank()) {
-                                    onCreateThread(testThreadTitle, "A super energetic conversation regarding " + testThreadTitle)
-                                }
-                            },
-                            enabled = wsState == WebSocketState.CONNECTED,
-                            colors = ButtonDefaults.buttonColors(containerColor = PrimaryPurple),
-                            shape = RoundedCornerShape(6.dp),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(28.dp),
-                            contentPadding = PaddingValues(0.dp)
-                        ) {
-                            Text("emit createdThread 📡", fontSize = 8.sp, fontWeight = FontWeight.Bold, color = Color.White)
-                        }
-                    }
-
-                    // Add User to Thread Panel
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text("Emit addedUserToThread", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = CharcoalBlack)
-                        Spacer(modifier = Modifier.height(4.dp))
-                        OutlinedTextField(
-                            value = testUserId,
-                            onValueChange = { testUserId = it },
-                            placeholder = { Text("Username", fontSize = 9.sp) },
-                            singleLine = true,
-                            textStyle = androidx.compose.ui.text.TextStyle(fontSize = 10.sp),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(46.dp),
-                            shape = RoundedCornerShape(8.dp),
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = PrimaryPurple,
-                                unfocusedBorderColor = Color(0xFFD1D5DB)
-                            )
-                        )
-                        Spacer(modifier = Modifier.height(6.dp))
-                        Button(
-                            onClick = {
-                                if (testUserId.isNotBlank()) {
-                                    val threadId = activeThreads.firstOrNull()?.threadId ?: "thread-yanga"
-                                    onAddUser(threadId, testUserId, "Yanga Ambassador")
-                                }
-                            },
-                            enabled = wsState == WebSocketState.CONNECTED,
-                            colors = ButtonDefaults.buttonColors(containerColor = PrimaryPurple),
-                            shape = RoundedCornerShape(6.dp),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(28.dp),
-                            contentPadding = PaddingValues(0.dp)
-                        ) {
-                            Text("emit addedUserToThread ⚡", fontSize = 8.sp, fontWeight = FontWeight.Bold, color = Color.White)
-                        }
-                    }
-                }
-
-                // Show active threads and users from typesafe listener store
-                if (activeThreads.isNotEmpty() || registeredThreadUsers.isNotEmpty()) {
-                    Spacer(modifier = Modifier.height(14.dp))
-                    Text(
-                        text = "Typesafe Listener State Store (Safely intercepts packets):",
-                        fontSize = 9.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFF0F766E)
-                    )
-                    Spacer(modifier = Modifier.height(6.dp))
-
-                    LazyRow(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        items(activeThreads) { th ->
-                            Box(
-                                modifier = Modifier
-                                    .background(Color(0xFFE0F2FE), RoundedCornerShape(8.dp))
-                                    .border(1.dp, Color(0xFF0284C7).copy(alpha = 0.5f), RoundedCornerShape(8.dp))
-                                    .padding(8.dp)
-                            ) {
-                                Column {
-                                    Text("CreatedThread Event", fontSize = 7.sp, color = Color(0xFF0369A1), fontWeight = FontWeight.Black)
-                                    Text("ID: ${th.threadId}", fontSize = 7.sp, color = CharcoalBlack.copy(alpha = 0.6f))
-                                    Text("Title: ${th.title}", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = CharcoalBlack)
-                                    Text("By: @${th.creator}", fontSize = 7.sp, color = CharcoalBlack.copy(alpha = 0.6f))
-                                }
-                            }
-                        }
-
-                        items(registeredThreadUsers) { usr ->
-                            Box(
-                                modifier = Modifier
-                                    .background(Color(0xFFF3E8FF), RoundedCornerShape(8.dp))
-                                    .border(1.dp, Color(0xFF7E22CE).copy(alpha = 0.5f), RoundedCornerShape(8.dp))
-                                    .padding(8.dp)
-                            ) {
-                                Column {
-                                    Text("AddedUserToThread Event", fontSize = 7.sp, color = Color(0xFF6B21A8), fontWeight = FontWeight.Black)
-                                    Text("User: @${usr.userId}", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = CharcoalBlack)
-                                    Text("Thread ID: ${usr.threadId}", fontSize = 7.sp, color = CharcoalBlack.copy(alpha = 0.6f))
-                                    Text("Invited By: @${usr.addedBy}", fontSize = 7.sp, color = CharcoalBlack.copy(alpha = 0.6f))
-                                }
-                            }
-                        }
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(8.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.End
-                ) {
-                    Text(
-                        text = "Broadcasting and simulation run entirely on active local EventEmitters.",
-                        fontSize = 8.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = CharcoalBlack.copy(alpha = 0.4f)
-                    )
-                }
-            }
-        }
-    }
-}
-

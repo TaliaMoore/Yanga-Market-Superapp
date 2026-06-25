@@ -141,7 +141,9 @@ class Restaurant(
     val address: String, // serves as location
     val hasTableBooking: Boolean = true,
     tablePrice: Double = 1500.0, // Constructor parameter name matching restaurant initializers
-    val isTableReserved: Boolean = false
+    val isTableReserved: Boolean = false,
+    val meals: List<FoodItem> = emptyList(),
+    val distanceKm: Double = 1.0
 ) : SuperAppEntity(id, name, address) {
 
     // Default constructor with placeholder values
@@ -203,7 +205,11 @@ open class Event(
     price: Double = -1.0, // normal parameter to allow legacy initialization
     initialGuests: Int = -1,
     initialEventNumber: String? = null,
-    initialContactPhone: String = ""
+    initialContactPhone: String = "",
+    val details: String = "",
+    val hasFood: Boolean = false,
+    val hasCompetition: Boolean = false,
+    val imageResName: String = ""
 ) : SuperAppEntity(id, title, venue) {
 
     // Default constructor (sets event number to "A000" and guests to 0)
@@ -508,6 +514,15 @@ data class VibeComment(
     val author: String,
     val content: String,
     val timestamp: Long = System.currentTimeMillis()
+)
+
+data class DiscussionGroup(
+    val id: String = UUID.randomUUID().toString(),
+    val name: String,
+    val description: String,
+    val memberCount: Int = 1,
+    val isJoined: Boolean = false,
+    val category: String = "General"
 )
 
 // --- 7. SECURE WALLET ---
