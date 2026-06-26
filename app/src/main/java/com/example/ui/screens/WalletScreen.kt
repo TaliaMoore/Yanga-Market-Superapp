@@ -24,13 +24,20 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.BorderStroke
-import com.example.data.network.OAuthStatus
-import com.example.data.network.GoogleContact
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
+import coil.compose.AsyncImage
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import android.net.Uri
+import com.example.R
 import com.example.ui.MainViewModel
 import com.example.ui.components.*
 import com.example.ui.theme.CharcoalBlack
 import com.example.ui.theme.PrimaryPurple
 import com.example.ui.theme.SecondaryYellow
+import com.example.ui.theme.PlayfulBg
+import androidx.compose.foundation.Image
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -48,6 +55,50 @@ fun WalletScreen(
     var fundInputStr by remember { mutableStateOf("") }
     var securityAuditsEnabled by remember { mutableStateOf(false) }
     var showPurseExplanation by remember { mutableStateOf(false) }
+
+    // Avatar pickers states
+    val customerPresetId by viewModel.customerPresetId.collectAsState()
+    val customerCustomUri by viewModel.customerCustomUri.collectAsState()
+    val freelancePresetId by viewModel.freelancePresetId.collectAsState()
+    val freelanceCustomUri by viewModel.freelanceCustomUri.collectAsState()
+
+    var showAvatarDialogForCustomer by remember { mutableStateOf(false) }
+    var showAvatarDialogForFreelance by remember { mutableStateOf(false) }
+
+    val customerPicker = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        if (uri != null) {
+            viewModel.updateCustomerCustomUri(uri.toString())
+        }
+    }
+
+    val freelancePicker = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        if (uri != null) {
+            viewModel.updateFreelanceCustomUri(uri.toString())
+        }
+    }
+
+    // Flutterwave simulation states
+    var showFlutterwaveDialog by remember { mutableStateOf(false) }
+    var flutterwaveAmountStr by remember { mutableStateOf("") }
+    var flutterwaveEmailStr by remember { mutableStateOf(viewModel.userPhoneOrEmail.value.ifEmpty { "customer@yanga.market" }) }
+    var isSimulatingPayment by remember { mutableStateOf(false) }
+    var simulatedPaymentStep by remember { mutableStateOf(1) } // 1: Amount/Details, 2: Checkout Overlay, 3: Processing, 4: OTP, 5: Success Receipt
+    
+    var flwCardNo by remember { mutableStateOf("") }
+    var flwCardExpiry by remember { mutableStateOf("") }
+    var flwCardCvv by remember { mutableStateOf("") }
+    var flwCardPin by remember { mutableStateOf("") }
+    var flwOtpCode by remember { mutableStateOf("") }
+    var flwOtpError by remember { mutableStateOf(false) }
+    var flwSimulatedTxId by remember { mutableStateOf("") }
+
+    var customPublicKey by remember { mutableStateOf("FLWPUBK_TEST-e08df9c8a77a94f1b-X") }
+    var customEncryptionKey by remember { mutableStateOf("FLWENCK_TEST-5f82ac840be3") }
+    var isSandboxMode by remember { mutableStateOf(true) }
 
     LazyColumn(
         modifier = modifier
@@ -156,7 +207,92 @@ fun WalletScreen(
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(12.dp))
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // Circular Avatar Row
+                    Text(
+                        text = "Customize Profile Pictures 🎨",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 13.sp,
+                        color = PrimaryPurple
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceAround,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        // Customer Profile Image Circle
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text("Customer Profile", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = CharcoalBlack)
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Box(
+                                modifier = Modifier
+                                    .size(72.dp)
+                                    .clip(CircleShape)
+                                    .background(PlayfulBg)
+                                    .border(2.5.dp, PrimaryPurple, CircleShape)
+                                    .clickable { showAvatarDialogForCustomer = true },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                if (customerCustomUri.isNotEmpty()) {
+                                    AsyncImage(
+                                        model = customerCustomUri,
+                                        contentDescription = "Customer Custom Profile",
+                                        modifier = Modifier.fillMaxSize(),
+                                        contentScale = ContentScale.Crop
+                                    )
+                                } else {
+                                    val imageId = if (customerPresetId == 2) R.drawable.img_avatar_cute_boy_1782427722051 else R.drawable.img_avatar_unicorn_1782427705994
+                                    Image(
+                                        painter = painterResource(id = imageId),
+                                        contentDescription = "Customer Preset Profile",
+                                        modifier = Modifier.fillMaxSize(),
+                                        contentScale = ContentScale.Crop
+                                    )
+                                }
+                            }
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text("Change ✏️", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = PrimaryPurple)
+                        }
+
+                        // Freelance Profile Image Circle
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text("Freelancer Profile", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = CharcoalBlack)
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Box(
+                                modifier = Modifier
+                                    .size(72.dp)
+                                    .clip(CircleShape)
+                                    .background(PlayfulBg)
+                                    .border(2.5.dp, SecondaryYellow, CircleShape)
+                                    .clickable { showAvatarDialogForFreelance = true },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                if (freelanceCustomUri.isNotEmpty()) {
+                                    AsyncImage(
+                                        model = freelanceCustomUri,
+                                        contentDescription = "Freelance Custom Profile",
+                                        modifier = Modifier.fillMaxSize(),
+                                        contentScale = ContentScale.Crop
+                                    )
+                                } else {
+                                    val imageId = if (freelancePresetId == 1) R.drawable.img_avatar_unicorn_1782427705994 else R.drawable.img_avatar_cute_boy_1782427722051
+                                    Image(
+                                        painter = painterResource(id = imageId),
+                                        contentDescription = "Freelance Preset Profile",
+                                        modifier = Modifier.fillMaxSize(),
+                                        contentScale = ContentScale.Crop
+                                    )
+                                }
+                            }
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text("Change ✏️", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = SecondaryYellow)
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
 
                     OutlinedTextField(
                         value = localNameInput,
@@ -203,41 +339,50 @@ fun WalletScreen(
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Text(
-                        text = "TOTAL WALLET LEDGER BALANCE",
+                        text = "AVAILABLE BALANCE",
                         fontSize = 11.sp,
                         fontWeight = FontWeight.ExtraBold,
                         color = SecondaryYellow,
                         style = MaterialTheme.typography.labelMedium
                     )
                     Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = "₦${String.format("%,.2f", balance)}",
-                        fontSize = 36.sp,
-                        fontWeight = FontWeight.Black,
-                        color = Color.White
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.Center,
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(20.dp))
-                            .background(SecondaryYellow)
-                            .padding(horizontal = 12.dp, vertical = 6.dp)
+                        horizontalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.Lock,
-                            contentDescription = "Secured status",
-                            tint = PrimaryPurple,
-                            modifier = Modifier.size(14.dp)
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
                         Text(
-                            text = "PIN LOCK ACTIVE: 1234 (VERIFIED)",
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = PrimaryPurple
+                            text = "₦${String.format("%,.2f", balance)}",
+                            fontSize = 32.sp,
+                            fontWeight = FontWeight.Black,
+                            color = Color.White
                         )
+                        Button(
+                            onClick = {
+                                // Initialize Flutterwave Dialog states
+                                flutterwaveAmountStr = ""
+                                flwCardNo = ""
+                                flwCardExpiry = ""
+                                flwCardCvv = ""
+                                flwCardPin = ""
+                                flwOtpCode = ""
+                                flwOtpError = false
+                                flwSimulatedTxId = "FLW-MOCK-TX-${System.currentTimeMillis() % 1000000}"
+                                simulatedPaymentStep = 1
+                                showFlutterwaveDialog = true
+                            },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = SecondaryYellow,
+                                contentColor = PrimaryPurple
+                            ),
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.testTag("wallet_deposit_btn")
+                        ) {
+                            Text(
+                                text = "Deposit 💳",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 13.sp
+                            )
+                        }
                     }
                 }
             }
@@ -434,84 +579,9 @@ fun WalletScreen(
             }
         }
 
-        // --- Fast Card Funding Area ---
-        item {
-            YangaPlayfulCard(
-                backgroundColor = Color.White,
-                borderColor = PrimaryPurple,
-                borderWidth = 2.0,
-                modifier = Modifier.fillMaxWidth().testTag("wallet_funding_panel")
-            ) {
-                Text(
-                    text = "Deposit Funds via Card Simulation 💸",
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.ExtraBold,
-                    color = CharcoalBlack
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    val deposits = listOf(2000.0, 5000.0, 10000.0)
-                    for (amount in deposits) {
-                        Button(
-                            onClick = { viewModel.fundWallet(amount) },
-                            colors = ButtonDefaults.buttonColors(containerColor = SecondaryYellow, contentColor = CharcoalBlack),
-                            shape = RoundedCornerShape(10.dp),
-                            modifier = Modifier
-                                .weight(1f)
-                                .border(1.5.dp, PrimaryPurple, RoundedCornerShape(10.dp))
-                        ) {
-                            Text(
-                                text = "₦${String.format("%,.0f", amount)}",
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 11.sp
-                            )
-                        }
-                    }
-                }
-                Spacer(modifier = Modifier.height(12.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    OutlinedTextField(
-                        value = fundInputStr,
-                        onValueChange = { fundInputStr = it },
-                        label = { Text("Manual funding amount (₦)") },
-                        placeholder = { Text("Enter custom amount") },
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = PrimaryPurple,
-                            focusedLabelColor = PrimaryPurple,
-                        ),
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        shape = RoundedCornerShape(10.dp),
-                        modifier = Modifier
-                            .weight(1f)
-                            .testTag("wallet_amount_input")
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    YangaFunButton(
-                        text = "Fund",
-                        onClick = {
-                            val amt = fundInputStr.toDoubleOrNull() ?: 0.0
-                            if (amt > 0) {
-                                viewModel.fundWallet(amt)
-                                fundInputStr = ""
-                            }
-                        },
-                        modifier = Modifier.height(56.dp),
-                        testTagStr = "submit_fund_btn"
-                    )
-                }
-            }
-        }
 
-        // --- Quick Google Contact Transfer Area ---
-        item {
-            GoogleContactsTransferSection(viewModel = viewModel, balance = balance)
-        }
+
+        // --- Quick Google Contact Transfer Area (Removed for security flow) ---
 
         // --- Ledger Audit Security toggle info notice ---
         if (securityAuditsEnabled) {
@@ -667,6 +737,606 @@ fun WalletScreen(
             }
         }
     }
+
+    if (showPurseExplanation) {
+        androidx.compose.ui.window.Dialog(
+            onDismissRequest = { showPurseExplanation = false },
+            properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)
+        ) {
+            Card(
+                shape = RoundedCornerShape(24.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.White),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp)
+                    .border(3.dp, PrimaryPurple, RoundedCornerShape(24.dp))
+                    .testTag("purse_explanation_dialog")
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(20.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "ℹ️ Purse Explanation",
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Black,
+                            color = PrimaryPurple
+                        )
+                        IconButton(
+                            onClick = { showPurseExplanation = false },
+                            modifier = Modifier.size(32.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = "Close",
+                                tint = PrimaryPurple
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    Text(
+                        text = "For the Yanga Coin Purse system, each time you make a transaction or buy something off the app, you get silver pieces! Here is how it works:",
+                        fontSize = 12.sp,
+                        color = CharcoalBlack,
+                        lineHeight = 16.sp
+                    )
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    listOf(
+                        "🛍️ Purchases" to "For each item you purchase in a transaction, you earn exactly 1 Silver coin. Buying 5 items earns you 5 Silver pieces!",
+                        "🤝 Freelancing status" to "Citizens registered as active freelancers gain silver coins automatically from superapp activity.",
+                        "⭐ Review submissions" to "Submitting or receiving a 5-star review rewards you with +5 Silver Pieces!",
+                        "🔥 Vibe checks" to "If any post you publish on 'Let's Share Vibes' board hits 100+ likes, you gain +1 Silver coin!",
+                        "🪙 Gold Upgrades" to "You can convert 100 Silver Pieces to 1 Gold Piece seamlessly.",
+                        "🎟️ Draw entries" to "A Gold Piece can be traded directly for tickets to enter the Golden Draw where you can win incredible prizes (like Suzuki Delivery Motorcycles or ₦50,000 cash rewards)!"
+                    ).forEach { (title, desc) ->
+                        Column(modifier = Modifier.padding(vertical = 4.dp)) {
+                            Text(title, fontSize = 11.sp, fontWeight = FontWeight.Black, color = PrimaryPurple)
+                            Text(desc, fontSize = 11.sp, color = CharcoalBlack.copy(alpha = 0.7f), lineHeight = 14.sp)
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    Button(
+                        onClick = { showPurseExplanation = false },
+                        colors = ButtonDefaults.buttonColors(containerColor = PrimaryPurple),
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(44.dp)
+                            .testTag("close_purse_info_dialog_btn")
+                    ) {
+                        Text("Got It! 👍", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                    }
+                }
+            }
+        }
+    }
+
+    // --- Customer Avatar Picker Dialog ---
+    if (showAvatarDialogForCustomer) {
+        AlertDialog(
+            onDismissRequest = { showAvatarDialogForCustomer = false },
+            confirmButton = {},
+            dismissButton = {},
+            title = { Text("Customer Profile Photo", fontWeight = FontWeight.Bold, color = PrimaryPurple) },
+            text = {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Text("Select a cute 2D icon preset or upload from gallery:", fontSize = 12.sp, color = CharcoalBlack)
+                    
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Button(
+                            onClick = {
+                                viewModel.updateCustomerPreset(1)
+                                showAvatarDialogForCustomer = false
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = PlayfulBg),
+                            shape = RoundedCornerShape(10.dp),
+                            modifier = Modifier.weight(1f).border(1.5.dp, PrimaryPurple, RoundedCornerShape(10.dp))
+                        ) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text("🦄", fontSize = 24.sp)
+                                Text("Unicorn", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = PrimaryPurple)
+                            }
+                        }
+
+                        Button(
+                            onClick = {
+                                viewModel.updateCustomerPreset(2)
+                                showAvatarDialogForCustomer = false
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = PlayfulBg),
+                            shape = RoundedCornerShape(10.dp),
+                            modifier = Modifier.weight(1f).border(1.5.dp, PrimaryPurple, RoundedCornerShape(10.dp))
+                        ) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text("👦", fontSize = 24.sp)
+                                Text("Cute Boy", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = PrimaryPurple)
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text("Or Choose Custom Representation:", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = CharcoalBlack)
+                    
+                    Button(
+                        onClick = {
+                            customerPicker.launch("image/*")
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = SecondaryYellow, contentColor = PrimaryPurple),
+                        shape = RoundedCornerShape(10.dp),
+                        modifier = Modifier.fillMaxWidth().border(1.5.dp, PrimaryPurple, RoundedCornerShape(10.dp))
+                    ) {
+                        Text("Pick Image from Gallery 📸", fontWeight = FontWeight.Bold)
+                    }
+
+                    Button(
+                        onClick = {
+                            viewModel.updateCustomerCustomUri("https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80")
+                            showAvatarDialogForCustomer = false
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = PrimaryPurple, contentColor = Color.White),
+                        shape = RoundedCornerShape(10.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Simulate Premium Photo 👩✨", fontWeight = FontWeight.Bold)
+                    }
+                    
+                    Spacer(modifier = Modifier.height(6.dp))
+                    
+                    Button(
+                        onClick = { showAvatarDialogForCustomer = false },
+                        colors = ButtonDefaults.buttonColors(containerColor = CharcoalBlack.copy(alpha = 0.1f), contentColor = CharcoalBlack),
+                        shape = RoundedCornerShape(10.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Cancel", fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+        )
+    }
+
+    // --- Freelancer Avatar Picker Dialog ---
+    if (showAvatarDialogForFreelance) {
+        AlertDialog(
+            onDismissRequest = { showAvatarDialogForFreelance = false },
+            confirmButton = {},
+            dismissButton = {},
+            title = { Text("Freelance Profile Photo", fontWeight = FontWeight.Bold, color = SecondaryYellow) },
+            text = {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Text("Select a cute 2D icon preset or upload from gallery:", fontSize = 12.sp, color = CharcoalBlack)
+                    
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Button(
+                            onClick = {
+                                viewModel.updateFreelancePreset(1)
+                                showAvatarDialogForFreelance = false
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = PlayfulBg),
+                            shape = RoundedCornerShape(10.dp),
+                            modifier = Modifier.weight(1f).border(1.5.dp, SecondaryYellow, RoundedCornerShape(10.dp))
+                        ) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text("🦄", fontSize = 24.sp)
+                                Text("Unicorn", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = SecondaryYellow)
+                            }
+                        }
+
+                        Button(
+                            onClick = {
+                                viewModel.updateFreelancePreset(2)
+                                showAvatarDialogForFreelance = false
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = PlayfulBg),
+                            shape = RoundedCornerShape(10.dp),
+                            modifier = Modifier.weight(1f).border(1.5.dp, SecondaryYellow, RoundedCornerShape(10.dp))
+                        ) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text("👦", fontSize = 24.sp)
+                                Text("Cute Boy", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = SecondaryYellow)
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text("Or Choose Custom Representation:", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = CharcoalBlack)
+                    
+                    Button(
+                        onClick = {
+                            freelancePicker.launch("image/*")
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = SecondaryYellow, contentColor = PrimaryPurple),
+                        shape = RoundedCornerShape(10.dp),
+                        modifier = Modifier.fillMaxWidth().border(1.5.dp, SecondaryYellow, RoundedCornerShape(10.dp))
+                    ) {
+                        Text("Pick Image from Gallery 📸", fontWeight = FontWeight.Bold)
+                    }
+
+                    Button(
+                        onClick = {
+                            viewModel.updateFreelanceCustomUri("https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=200&q=80")
+                            showAvatarDialogForFreelance = false
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = SecondaryYellow, contentColor = PrimaryPurple),
+                        shape = RoundedCornerShape(10.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Simulate Premium Photo 👨✨", fontWeight = FontWeight.Bold)
+                    }
+                    
+                    Spacer(modifier = Modifier.height(6.dp))
+                    
+                    Button(
+                        onClick = { showAvatarDialogForFreelance = false },
+                        colors = ButtonDefaults.buttonColors(containerColor = CharcoalBlack.copy(alpha = 0.1f), contentColor = CharcoalBlack),
+                        shape = RoundedCornerShape(10.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Cancel", fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+        )
+    }
+
+    // --- Flutterwave Payment Dialog ---
+    if (showFlutterwaveDialog) {
+        AlertDialog(
+            onDismissRequest = { if (simulatedPaymentStep != 3) showFlutterwaveDialog = false },
+            confirmButton = {},
+            dismissButton = {},
+            properties = androidx.compose.ui.window.DialogProperties(
+                dismissOnBackPress = simulatedPaymentStep != 3,
+                dismissOnClickOutside = simulatedPaymentStep != 3
+            ),
+            text = {
+                Card(
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    modifier = Modifier.fillMaxWidth().border(2.dp, PrimaryPurple, RoundedCornerShape(16.dp))
+                ) {
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        if (simulatedPaymentStep == 1) {
+                            // Step 1: Amount & Billing info
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text("Flutterwave Deposit 💳", fontWeight = FontWeight.Black, fontSize = 16.sp, color = PrimaryPurple)
+                                IconButton(onClick = { showFlutterwaveDialog = false }) {
+                                    Icon(Icons.Default.Close, contentDescription = "Close")
+                                }
+                            }
+
+                            Text("Enter deposit details to simulate secure online payments via Flutterwave Gateway:", fontSize = 11.sp, color = CharcoalBlack.copy(alpha = 0.7f))
+
+                            OutlinedTextField(
+                                value = flutterwaveAmountStr,
+                                onValueChange = { flutterwaveAmountStr = it.filter { c -> c.isDigit() } },
+                                label = { Text("Funding Amount (₦)") },
+                                placeholder = { Text("e.g. 5000") },
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                shape = RoundedCornerShape(10.dp),
+                                modifier = Modifier.fillMaxWidth()
+                            )
+
+                            OutlinedTextField(
+                                value = flutterwaveEmailStr,
+                                onValueChange = { flutterwaveEmailStr = it },
+                                label = { Text("Billing Email Address") },
+                                shape = RoundedCornerShape(10.dp),
+                                modifier = Modifier.fillMaxWidth()
+                            )
+
+                            // Quick Presets
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                listOf(2000, 5000, 10000).forEach { pAmt ->
+                                    Button(
+                                        onClick = { flutterwaveAmountStr = pAmt.toString() },
+                                        colors = ButtonDefaults.buttonColors(containerColor = PlayfulBg, contentColor = PrimaryPurple),
+                                        shape = RoundedCornerShape(8.dp),
+                                        modifier = Modifier.weight(1f).border(1.dp, PrimaryPurple.copy(alpha = 0.3f), RoundedCornerShape(8.dp))
+                                    ) {
+                                        Text("₦$pAmt", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                    }
+                                }
+                            }
+
+                            // Advanced Config Collapsible
+                            Card(
+                                colors = CardDefaults.cardColors(containerColor = PlayfulBg),
+                                shape = RoundedCornerShape(8.dp),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Column(modifier = Modifier.padding(8.dp)) {
+                                    Text("⚙️ FLUTTERWAVE CONFIGURATION (MOCK)", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = PrimaryPurple)
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text("Public Key: $customPublicKey", fontSize = 8.sp, color = CharcoalBlack.copy(alpha = 0.6f))
+                                    Text("Sandbox Mode: Enabled (Active test payload)", fontSize = 8.sp, color = Color(0xFF16A34A), fontWeight = FontWeight.Bold)
+                                }
+                            }
+
+                            Button(
+                                onClick = {
+                                    val amt = flutterwaveAmountStr.toDoubleOrNull() ?: 0.0
+                                    if (amt > 0) {
+                                        simulatedPaymentStep = 2
+                                    }
+                                },
+                                colors = ButtonDefaults.buttonColors(containerColor = PrimaryPurple),
+                                shape = RoundedCornerShape(12.dp),
+                                modifier = Modifier.fillMaxWidth().height(48.dp)
+                            ) {
+                                Text("Initiate Secured Pay ⚡", fontWeight = FontWeight.Bold, color = Color.White)
+                            }
+                        }
+
+                        else if (simulatedPaymentStep == 2) {
+                            // Step 2: Flutterwave Gateway Checkout UI Overlay
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .background(Color(0xFFF9FBFD))
+                                    .border(1.dp, Color(0xFFE2E8F0), RoundedCornerShape(8.dp))
+                            ) {
+                                Column {
+                                    // Flutterwave Branding Header
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .background(Color(0xFFF39C12)) // Flutterwave Orange Accent
+                                            .padding(10.dp),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text("flutterwave", fontWeight = FontWeight.Black, color = Color.White, fontSize = 13.sp)
+                                        Text("SECURE CHECKOUT", fontWeight = FontWeight.Bold, color = Color.White, fontSize = 9.sp)
+                                    }
+
+                                    Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                        Text("Yanga Market Superapp Limited", fontWeight = FontWeight.Bold, fontSize = 11.sp, color = CharcoalBlack)
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween
+                                        ) {
+                                            Text("Email: $flutterwaveEmailStr", fontSize = 9.sp, color = CharcoalBlack.copy(alpha = 0.6f))
+                                            Text("Amount: ₦$flutterwaveAmountStr", fontSize = 11.sp, fontWeight = FontWeight.Black, color = PrimaryPurple)
+                                        }
+
+                                        Divider(color = Color(0xFFE2E8F0))
+
+                                        Text("Pay with Card", fontWeight = FontWeight.Bold, fontSize = 11.sp, color = PrimaryPurple)
+
+                                        OutlinedTextField(
+                                            value = flwCardNo,
+                                            onValueChange = { flwCardNo = it.filter { c -> c.isDigit() }.take(16) },
+                                            label = { Text("CARD NUMBER", fontSize = 9.sp) },
+                                            placeholder = { Text("5061 2345 6789 0123") },
+                                            shape = RoundedCornerShape(8.dp),
+                                            modifier = Modifier.fillMaxWidth()
+                                        )
+
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                        ) {
+                                            OutlinedTextField(
+                                                value = flwCardExpiry,
+                                                onValueChange = { flwCardExpiry = it.take(5) },
+                                                label = { Text("EXPIRY (MM/YY)", fontSize = 9.sp) },
+                                                placeholder = { Text("12/28") },
+                                                shape = RoundedCornerShape(8.dp),
+                                                modifier = Modifier.weight(1f)
+                                            )
+                                            OutlinedTextField(
+                                                value = flwCardCvv,
+                                                onValueChange = { flwCardCvv = it.filter { c -> c.isDigit() }.take(3) },
+                                                label = { Text("CVV", fontSize = 9.sp) },
+                                                placeholder = { Text("321") },
+                                                shape = RoundedCornerShape(8.dp),
+                                                modifier = Modifier.weight(1f)
+                                            )
+                                        }
+
+                                        OutlinedTextField(
+                                            value = flwCardPin,
+                                            onValueChange = { flwCardPin = it.filter { c -> c.isDigit() }.take(4) },
+                                            label = { Text("CARD PIN (4-Digits)", fontSize = 9.sp) },
+                                            placeholder = { Text("e.g. 9081") },
+                                            shape = RoundedCornerShape(8.dp),
+                                            modifier = Modifier.fillMaxWidth()
+                                        )
+
+                                        Spacer(modifier = Modifier.height(4.dp))
+
+                                        Button(
+                                            onClick = {
+                                                if (flwCardNo.length == 16 && flwCardCvv.length == 3) {
+                                                    simulatedPaymentStep = 3
+                                                } else {
+                                                    // Allow custom simulation bypass
+                                                    flwCardNo = "5061123456789012"
+                                                    flwCardCvv = "321"
+                                                    simulatedPaymentStep = 3
+                                                }
+                                            },
+                                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFF39C12)),
+                                            shape = RoundedCornerShape(8.dp),
+                                            modifier = Modifier.fillMaxWidth().height(44.dp)
+                                        ) {
+                                            Text("SIMULATE SECURE PAY 🔒", fontWeight = FontWeight.Black, color = Color.White, fontSize = 12.sp)
+                                        }
+                                        
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.Center,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Text("🔒 SECURED BY FLUTTERWAVE GATEWAY v3.0", fontSize = 8.sp, color = Color.Gray, fontWeight = FontWeight.Bold)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        else if (simulatedPaymentStep == 3) {
+                            // Step 3: Processing loading
+                            Column(
+                                modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                CircularProgressIndicator(color = Color(0xFFF39C12))
+                                Text("Contacting bank gateway...", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = CharcoalBlack)
+                                Text("Simulating secured Flutterwave encryption protocols...", fontSize = 10.sp, color = Color.Gray, textAlign = TextAlign.Center)
+                                
+                                // Automatically advance after brief simulator delay
+                                LaunchedEffect(Unit) {
+                                    kotlinx.coroutines.delay(2000)
+                                    simulatedPaymentStep = 4
+                                }
+                            }
+                        }
+
+                        else if (simulatedPaymentStep == 4) {
+                            // Step 4: OTP challenge
+                            Text("3D Secure Verification 🔐", fontWeight = FontWeight.Black, fontSize = 15.sp, color = PrimaryPurple)
+                            Text("Enter the test authorization code to complete your simulated Flutterwave payment:", fontSize = 11.sp, color = CharcoalBlack)
+
+                            Card(
+                                colors = CardDefaults.cardColors(containerColor = PlayfulBg),
+                                shape = RoundedCornerShape(8.dp),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Column(modifier = Modifier.padding(10.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Text("SIMULATOR TEST CODE", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = PrimaryPurple)
+                                    Text("12345", fontSize = 24.sp, fontWeight = FontWeight.Black, color = PrimaryPurple)
+                                    Text("Use this test code to approve sandbox debit.", fontSize = 9.sp, color = Color.Gray)
+                                }
+                            }
+
+                            OutlinedTextField(
+                                value = flwOtpCode,
+                                onValueChange = { 
+                                    flwOtpCode = it.filter { c -> c.isDigit() }
+                                    flwOtpError = false
+                                },
+                                label = { Text("Enter OTP Code") },
+                                placeholder = { Text("e.g. 12345") },
+                                shape = RoundedCornerShape(10.dp),
+                                isError = flwOtpError,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+
+                            if (flwOtpError) {
+                                Text("Incorrect security code. Please input '12345' to simulate success.", fontSize = 10.sp, color = Color.Red, fontWeight = FontWeight.Bold)
+                            }
+
+                            Button(
+                                onClick = {
+                                    if (flwOtpCode == "12345") {
+                                        simulatedPaymentStep = 5
+                                    } else {
+                                        flwOtpError = true
+                                    }
+                                },
+                                colors = ButtonDefaults.buttonColors(containerColor = PrimaryPurple),
+                                shape = RoundedCornerShape(10.dp),
+                                modifier = Modifier.fillMaxWidth().height(44.dp)
+                            ) {
+                                Text("Approve Payment", fontWeight = FontWeight.Bold)
+                            }
+                        }
+
+                        else if (simulatedPaymentStep == 5) {
+                            // Step 5: Success Receipt screen
+                            Column(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Box(
+                                    modifier = Modifier.size(54.dp).background(Color(0xFFDCFCE7), CircleShape),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(Icons.Default.CheckCircle, contentDescription = "Success", tint = Color(0xFF16A34A), modifier = Modifier.size(36.dp))
+                                }
+
+                                Text("Payment Successful! 🎉", fontWeight = FontWeight.Black, fontSize = 16.sp, color = Color(0xFF16A34A))
+                                Text("Simulated Flutterwave secure payload transfer complete.", fontSize = 10.sp, color = Color.Gray)
+
+                                Divider(color = Color(0xFFE2E8F0), modifier = Modifier.padding(vertical = 8.dp))
+
+                                Column(
+                                    modifier = Modifier.fillMaxWidth().background(PlayfulBg).padding(10.dp),
+                                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                        Text("REFERENCE", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = Color.Gray)
+                                        Text(flwSimulatedTxId, fontSize = 9.sp, fontWeight = FontWeight.Bold, color = CharcoalBlack)
+                                    }
+                                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                        Text("MERCHANT ID", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = Color.Gray)
+                                        Text("FLW-YNG-MOCK-9941", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = CharcoalBlack)
+                                    }
+                                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                        Text("CREDITED VALUE", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = Color.Gray)
+                                        Text("₦$flutterwaveAmountStr", fontSize = 10.sp, fontWeight = FontWeight.Black, color = PrimaryPurple)
+                                    }
+                                }
+
+                                Button(
+                                    onClick = {
+                                        val amt = flutterwaveAmountStr.toDoubleOrNull() ?: 0.0
+                                        if (amt > 0) {
+                                            viewModel.fundWallet(amt)
+                                        }
+                                        showFlutterwaveDialog = false
+                                    },
+                                    colors = ButtonDefaults.buttonColors(containerColor = PrimaryPurple),
+                                    shape = RoundedCornerShape(10.dp),
+                                    modifier = Modifier.fillMaxWidth().height(44.dp)
+                                ) {
+                                    Text("Back to Ledger", fontWeight = FontWeight.Bold, color = Color.White)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        )
+    }
 }
 
 @Composable
@@ -775,276 +1445,7 @@ fun TransactionRow(
             }
         }
     }
-
-    if (showPurseExplanation) {
-        androidx.compose.ui.window.Dialog(
-            onDismissRequest = { showPurseExplanation = false },
-            properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)
-        ) {
-            Card(
-                shape = RoundedCornerShape(24.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp)
-                    .border(3.dp, PrimaryPurple, RoundedCornerShape(24.dp))
-                    .testTag("purse_explanation_dialog")
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(20.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = "ℹ️ Purse Explanation",
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.Black,
-                            color = PrimaryPurple
-                        )
-                        IconButton(
-                            onClick = { showPurseExplanation = false },
-                            modifier = Modifier.size(32.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Close,
-                                contentDescription = "Close",
-                                tint = PrimaryPurple
-                            )
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(14.dp))
-
-                    Text(
-                        text = "For the Yanga Coin Purse system, each time you make a transaction or buy something off the app, you get silver pieces! Here is how it works:",
-                        fontSize = 12.sp,
-                        color = CharcoalBlack,
-                        lineHeight = 16.sp
-                    )
-
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    listOf(
-                        "🛍️ Purchases" to "For each item you purchase in a transaction, you earn exactly 1 Silver coin. Buying 5 items earns you 5 Silver pieces!",
-                        "🤝 Freelancing status" to "Citizens registered as active freelancers gain silver coins automatically from superapp activity.",
-                        "⭐ Review submissions" to "Submitting or receiving a 5-star review rewards you with +5 Silver Pieces!",
-                        "🔥 Vibe checks" to "If any post you publish on 'Let's Share Vibes' board hits 100+ likes, you gain +1 Silver coin!",
-                        "🪙 Gold Upgrades" to "You can convert 100 Silver Pieces to 1 Gold Piece seamlessly.",
-                        "🎟️ Draw entries" to "A Gold Piece can be traded directly for tickets to enter the Golden Draw where you can win incredible prizes (like Suzuki Delivery Motorcycles or ₦50,000 cash rewards)!"
-                    ).forEach { (title, desc) ->
-                        Column(modifier = Modifier.padding(vertical = 4.dp)) {
-                            Text(title, fontSize = 11.sp, fontWeight = FontWeight.Black, color = PrimaryPurple)
-                            Text(desc, fontSize = 11.sp, color = CharcoalBlack.copy(alpha = 0.7f), lineHeight = 14.sp)
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    Button(
-                        onClick = { showPurseExplanation = false },
-                        colors = ButtonDefaults.buttonColors(containerColor = PrimaryPurple),
-                        shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(44.dp)
-                            .testTag("close_purse_info_dialog_btn")
-                    ) {
-                        Text("Got It! 👍", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color.White)
-                    }
-                }
-            }
-        }
-    }
 }
 
-@Composable
-fun GoogleContactsTransferSection(
-    viewModel: MainViewModel,
-    balance: Double,
-    modifier: Modifier = Modifier
-) {
-    val oauthState by viewModel.oauthStatus.collectAsState()
-    val syncedContacts by viewModel.oauthSynchronizedContacts.collectAsState()
 
-    if (oauthState == OAuthStatus.AUTHORIZED && syncedContacts.isNotEmpty()) {
-        Card(
-            colors = CardDefaults.cardColors(containerColor = Color.White),
-            shape = RoundedCornerShape(16.dp),
-            modifier = modifier
-                .fillMaxWidth()
-                .border(2.dp, PrimaryPurple, RoundedCornerShape(16.dp))
-                .testTag("google_contacts_transfer_card")
-        ) {
-            Column(modifier = Modifier.padding(16.dp)) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(24.dp)
-                            .background(Color(0xFF4285F4), CircleShape),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = "G",
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Black,
-                            color = Color.White
-                        )
-                    }
-                    Text(
-                        text = "Direct Google Contacts Pay ⚡🔑",
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                        color = CharcoalBlack
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(6.dp))
-                Text(
-                    text = "Transfer to verified Google contacts securely. Handshake is executed on oauth2 tokens.",
-                    fontSize = 11.sp,
-                    color = CharcoalBlack.copy(alpha = 0.6f)
-                )
-
-                Spacer(modifier = Modifier.height(14.dp))
-
-                var selectedContactForTransfer by remember { mutableStateOf<GoogleContact?>(null) }
-                var transferAmountStr by remember { mutableStateOf("") }
-
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    syncedContacts.forEach { contact ->
-                        val isSelected = selectedContactForTransfer?.id == contact.id
-                        Box(
-                            modifier = Modifier
-                                .background(
-                                    if (isSelected) PrimaryPurple.copy(alpha = 0.15f) else Color(0xFFF9FAFB),
-                                    RoundedCornerShape(12.dp)
-                                )
-                                .border(
-                                    width = if (isSelected) 2.dp else 1.dp,
-                                    color = if (isSelected) PrimaryPurple else Color(0xFFE5E7EB),
-                                    shape = RoundedCornerShape(12.dp)
-                                )
-                                .clickable {
-                                    selectedContactForTransfer = if (isSelected) null else contact
-                                }
-                                .padding(8.dp)
-                                .weight(1f),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(24.dp)
-                                        .background(Color(contact.profileColor), CircleShape),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Text(
-                                        text = contact.name.take(1).uppercase(),
-                                        color = Color.White,
-                                        fontSize = 8.sp,
-                                        fontWeight = FontWeight.Black
-                                    )
-                                }
-                                Spacer(modifier = Modifier.height(4.dp))
-                                Text(
-                                    text = contact.name.split(" ").firstOrNull() ?: contact.name,
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = CharcoalBlack,
-                                    maxLines = 1
-                                )
-                            }
-                        }
-                    }
-                }
-
-                selectedContactForTransfer?.let { contact ->
-                    Spacer(modifier = Modifier.height(14.dp))
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .background(Color(0xFFF3F4F6), RoundedCornerShape(10.dp))
-                            .padding(8.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Text(
-                            text = "Recipient: ${contact.name} (${contact.phone})",
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = PrimaryPurple
-                        )
-                        Text(
-                            text = "Selected ✓",
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color(0xFF16A34A)
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.height(10.dp))
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        OutlinedTextField(
-                            value = transferAmountStr,
-                            onValueChange = { transferAmountStr = it },
-                            label = { Text("Amount to Transfer (₦)") },
-                            placeholder = { Text("e.g. 5000") },
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = PrimaryPurple,
-                                focusedLabelColor = PrimaryPurple
-                            ),
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                            shape = RoundedCornerShape(10.dp),
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(56.dp)
-                                .testTag("transfer_amount_input")
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Button(
-                            onClick = {
-                                val amt = transferAmountStr.toDoubleOrNull() ?: 0.0
-                                if (amt <= 0.0) {
-                                    viewModel.postError("Please enter a valid transfer amount!")
-                                } else {
-                                    viewModel.transferWalletFunds(amt, contact.name)
-                                    transferAmountStr = ""
-                                    selectedContactForTransfer = null
-                                }
-                            },
-                            colors = ButtonDefaults.buttonColors(containerColor = PrimaryPurple),
-                            shape = RoundedCornerShape(10.dp),
-                            modifier = Modifier
-                                .height(56.dp)
-                                .border(1.5.dp, PrimaryPurple, RoundedCornerShape(10.dp))
-                                .testTag("submit_transfer_btn")
-                        ) {
-                            Text(
-                                "Send ⚡",
-                                fontWeight = FontWeight.Bold,
-                                color = Color.White,
-                                fontSize = 11.sp
-                            )
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
 

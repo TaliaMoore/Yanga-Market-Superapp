@@ -24,7 +24,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.ui.MainViewModel
-import com.example.ui.components.YangaStatusBanners
+import com.example.ui.components.*
 import com.example.ui.screens.*
 import com.example.ui.theme.*
 
@@ -205,7 +205,7 @@ fun YangaSuperappShell() {
         }
 
         // --- Global Header Top Bar showcasing Yanga Market title, Wallet of choice & Cart Mini Icon on top of each page ---
-        if (currentRoute != "/cart") {
+        if (currentRoute != "/cart" && currentRoute != "/notifications") {
           YangaGlobalTopBar(
             viewModel = viewModel,
             onNavigate = { route ->
@@ -254,6 +254,10 @@ fun YangaSuperappShell() {
               onNavigateBack = { router.navigateBack() }
             )
             "/cart" -> CartScreen(
+              viewModel = viewModel,
+              onNavigateBack = { router.navigateBack() }
+            )
+            "/notifications" -> NotificationsScreen(
               viewModel = viewModel,
               onNavigateBack = { router.navigateBack() }
             )
@@ -307,11 +311,13 @@ fun YangaGlobalTopBar(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Logo column
+                // Logo column with Peacock Branding
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier.clickable { onNavigate("/home") }
                 ) {
+                    PurplePeacockLogo(size = 22.dp)
+                    Spacer(modifier = Modifier.width(6.dp))
                     Text(
                         text = "Yanga",
                         fontSize = 18.sp,
@@ -324,10 +330,6 @@ fun YangaGlobalTopBar(
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Bold,
                         color = Color(0xFFF97316)
-                    )
-                    Text(
-                        text = " 🚀",
-                        fontSize = 14.sp
                     )
                 }
 
@@ -387,6 +389,42 @@ fun YangaGlobalTopBar(
                             ) {
                                 Text(
                                     text = cartCount.toString(),
+                                    fontSize = 8.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.White
+                                )
+                            }
+                        }
+                    }
+
+                    // Notification Bell Icon beside the Cart icon
+                    val notifications by viewModel.notifications.collectAsState()
+                    val unreadCount = notifications.count { !it.isRead }
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .background(PlayfulCream, RoundedCornerShape(10.dp))
+                            .border(1.2.dp, PrimaryPurple, RoundedCornerShape(10.dp))
+                            .clickable { onNavigate("/notifications") }
+                            .padding(horizontal = 8.dp, vertical = 4.dp)
+                            .testTag("global_topbar_notifications_icon")
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Notifications,
+                            contentDescription = "Notifications",
+                            tint = PrimaryPurple,
+                            modifier = Modifier.size(12.dp)
+                        )
+                        if (unreadCount > 0) {
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .background(Color(0xFFF97316)) // Orange accent for notification badge
+                                    .padding(horizontal = 5.dp, vertical = 1.5.dp)
+                            ) {
+                                Text(
+                                    text = unreadCount.toString(),
                                     fontSize = 8.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = Color.White

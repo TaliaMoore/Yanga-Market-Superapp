@@ -142,7 +142,7 @@ class YangaWebSocketService private constructor(
     private var serverPushJob: Job? = null
 
     // Connection states
-    private val _connectionState = MutableStateFlow(WebSocketState.CONNECTED)
+    private val _connectionState = MutableStateFlow(WebSocketState.DISCONNECTED)
     val connectionState: StateFlow<WebSocketState> = _connectionState.asStateFlow()
 
     // Activity logging console

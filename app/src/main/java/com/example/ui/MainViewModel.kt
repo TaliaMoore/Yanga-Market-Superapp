@@ -14,7 +14,7 @@ import java.util.UUID
 class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private val database = AppDatabase.getDatabase(application)
-    private val graphQLClient = MockGraphQLClient(database, application)
+    val graphQLClient = MockGraphQLClient(database, application)
     
     val firebaseAuthEngine: com.example.domain.auth.FirebaseAuthEngine = com.example.domain.auth.FirebaseAuthEngineImpl()
     
@@ -38,6 +38,53 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _userPhoneOrEmail = MutableStateFlow(prefs.getString("user_phone_or_email", "") ?: "")
     val userPhoneOrEmail: StateFlow<String> = _userPhoneOrEmail.asStateFlow()
+
+    private val _checkoutPin = MutableStateFlow(prefs.getString("checkout_pin", "") ?: "")
+    val checkoutPin: StateFlow<String> = _checkoutPin.asStateFlow()
+
+    fun setCheckoutPin(pin: String) {
+        _checkoutPin.value = pin
+        prefs.edit().putString("checkout_pin", pin).apply()
+        _successBannerMessage.value = "PIN configured successfully! 🔐"
+    }
+
+    private val _customerPresetId = MutableStateFlow(prefs.getInt("customer_preset_id", 1))
+    val customerPresetId: StateFlow<Int> = _customerPresetId.asStateFlow()
+
+    private val _customerCustomUri = MutableStateFlow(prefs.getString("customer_custom_uri", "") ?: "")
+    val customerCustomUri: StateFlow<String> = _customerCustomUri.asStateFlow()
+
+    private val _freelancePresetId = MutableStateFlow(prefs.getInt("freelance_preset_id", 2))
+    val freelancePresetId: StateFlow<Int> = _freelancePresetId.asStateFlow()
+
+    private val _freelanceCustomUri = MutableStateFlow(prefs.getString("freelance_custom_uri", "") ?: "")
+    val freelanceCustomUri: StateFlow<String> = _freelanceCustomUri.asStateFlow()
+
+    fun updateCustomerPreset(id: Int) {
+        _customerPresetId.value = id
+        _customerCustomUri.value = ""
+        prefs.edit().putInt("customer_preset_id", id).putString("customer_custom_uri", "").apply()
+        _successBannerMessage.value = "Customer profile icon updated! 🦄"
+    }
+
+    fun updateCustomerCustomUri(uri: String) {
+        _customerCustomUri.value = uri
+        prefs.edit().putString("customer_custom_uri", uri).apply()
+        _successBannerMessage.value = "Customer profile photo uploaded successfully! 📸"
+    }
+
+    fun updateFreelancePreset(id: Int) {
+        _freelancePresetId.value = id
+        _freelanceCustomUri.value = ""
+        prefs.edit().putInt("freelance_preset_id", id).putString("freelance_custom_uri", "").apply()
+        _successBannerMessage.value = "Freelancer profile icon updated! 👦"
+    }
+
+    fun updateFreelanceCustomUri(uri: String) {
+        _freelanceCustomUri.value = uri
+        prefs.edit().putString("freelance_custom_uri", uri).apply()
+        _successBannerMessage.value = "Freelancer profile photo uploaded successfully! 📸"
+    }
 
     private val _loginMethod = MutableStateFlow(prefs.getString("login_method", "") ?: "") // "Google", "Email", "Phone"
     val loginMethod: StateFlow<String> = _loginMethod.asStateFlow()
@@ -238,24 +285,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
     
-    // --- Google OAuth 2.0 Integration ---
-    private val oauthManager = OAuthManager()
-    val oauthStatus = oauthManager.status
-    val oauthUserProfile = oauthManager.userProfile
-    val oauthSynchronizedContacts = oauthManager.synchronizedContacts
-
-    fun authorizeWithGoogle(email: String = "eniolaagbeyindo@gmail.com", name: String = "Eniola Agbeyindo") {
-        viewModelScope.launch {
-            oauthManager.startAuthorizationFlow(email, name)
-            _successBannerMessage.value = "Secure OAuth 2.0 connection verified! Google Contacts enabled. 🚪🔐"
-        }
-    }
-
-    fun revokeGoogleSession() {
-        oauthManager.revokeAuthorization()
-        _successBannerMessage.value = "Safe Sign-Out of Google. Session keys recycled. 🔑🔒"
-    }
-
+    // --- Google OAuth 2.0 Integration removed for security flow ---
+    
     // --- Secure Passport Identity, Storage Vault, and Appointment Alert Integration ---
     private val passportManager = PassportManager()
     val passportStatus = passportManager.status
@@ -644,6 +675,59 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _successBannerMessage = MutableStateFlow<String?>(null)
     val successBannerMessage: StateFlow<String?> = _successBannerMessage.asStateFlow()
 
+    // --- Yanga Superapp Notification Center ---
+    private val _notifications = MutableStateFlow<List<YangaNotification>>(listOf(
+        YangaNotification(
+            id = "notif_1",
+            title = "Weekly Mega Draw Entry Successful! 🎟️✨",
+            message = "You have successfully registered Ticket #YNG-9482 for this week's ₦50,000.00 jackpot draw. Win announcements will trigger on Friday!",
+            timestamp = "Today, 14:15",
+            icon = "🎟️",
+            isRead = false,
+            type = "DRAW"
+        ),
+        YangaNotification(
+            id = "notif_2",
+            title = "Ledger Transfer Authorized! ⚡💜",
+            message = "Your direct wallet payment of ₦3,500.00 for Friday Fiesta was successfully completed. Digital hash: tx_99214b",
+            timestamp = "Yesterday, 18:40",
+            icon = "⚡",
+            isRead = true,
+            type = "TRANSACTION"
+        ),
+        YangaNotification(
+            id = "notif_3",
+            title = "Purple Peacock Engagement Bonus! 🦚💰",
+            message = "A brand-new Yanga Community engagement bonus of +10 Silver Coins was credited to your coin purse! Keep sharing positive vibes on the boards.",
+            timestamp = "3 days ago",
+            icon = "🦚",
+            isRead = false,
+            type = "BONUS"
+        )
+    ))
+    val notifications: StateFlow<List<YangaNotification>> = _notifications.asStateFlow()
+
+    fun addNotification(title: String, message: String, type: String, icon: String) {
+        val newNotification = YangaNotification(
+            id = "notif_" + System.currentTimeMillis(),
+            title = title,
+            message = message,
+            timestamp = "Just Now",
+            icon = icon,
+            isRead = false,
+            type = type
+        )
+        _notifications.value = listOf(newNotification) + _notifications.value
+    }
+
+    fun markAllNotificationsAsRead() {
+        _notifications.value = _notifications.value.map { it.copy(isRead = true) }
+    }
+
+    fun deleteNotification(id: String) {
+        _notifications.value = _notifications.value.filter { it.id != id }
+    }
+
     // --- Yanga Coin Purse & Draw States ---
     private val _silverCoins = MutableStateFlow(prefs.getInt("silver_coins", 45))
     val silverCoins: StateFlow<Int> = _silverCoins.asStateFlow()
@@ -711,6 +795,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 .apply()
             
             _successBannerMessage.value = "Successfully entered $ticketCount ticket(s) into the Draw! Good luck! 🎟️🌟"
+            addNotification(
+                title = "New Draw Entry Confirmed! 🎟️✨",
+                message = "You entered $ticketCount ticket(s) into the Weekly Mega Draw. Total registered tickets: ${_drawTickets.value}. May the purple peacock guide you to victory!",
+                type = "DRAW",
+                icon = "🎟️"
+            )
         } else {
             _errorBannerMessage.value = "You do not have enough Gold Pieces! Earn more silver and convert them."
         }
@@ -718,7 +808,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun boostVibeLikes(vibeId: String) {
         viewModelScope.launch {
-            val currentPosts = database.vibePostDao().getAllVibePosts().first()
+            val currentPosts = database.vibePostDao().getAllVibePostsDirect()
             val match = currentPosts.find { it.id == vibeId }
             if (match != null) {
                 val updated = match.copy(
@@ -812,7 +902,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
 
         viewModelScope.launch {
-            val currentPosts = database.vibePostDao().getAllVibePosts().first()
+            val currentPosts = database.vibePostDao().getAllVibePostsDirect()
             val post = currentPosts.find { it.id == postId }
             if (post != null) {
                 val currentComments = parseComments(post.commentsJson).toMutableList()
@@ -831,21 +921,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             } else {
                 _errorBannerMessage.value = "Post not found."
             }
-        }
-    }
-
-    init {
-        // Fetch static catalogs using GraphQL Query abstractions
-        refreshGraphQLCatalogs()
-        // Pre-seed default vibes community posts for immersive layout
-        preseedVibesIfEmpty()
-
-        // Hook Real-time Web Socket threads listeners
-        webSocketService.safeEmitter.onCreatedThread { thread ->
-            _activeThreads.value = _activeThreads.value + thread
-        }
-        webSocketService.safeEmitter.onAddedUserToThread { userJoin ->
-            _registeredThreadUsers.value = _registeredThreadUsers.value + userJoin
         }
     }
 
@@ -1002,8 +1077,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     private fun preseedVibesIfEmpty() {
-        viewModelScope.launch {
-            val count = vibePosts.value.size
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            val count = database.vibePostDao().getAllVibePostsDirect().size
             if (count == 0) {
                 val preseeds = listOf(
                     VibePostEntity(
@@ -1094,6 +1169,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 _errorBannerMessage.value = payRes.errors.first().message
             } else {
                 _successBannerMessage.value = "Successfully sent ₦${String.format("%,.2f", amount)} secure to Google-Synced Contact '$recipientName'! ⚡🔑💜"
+                addNotification(
+                    title = "Ledger Transfer Success! ⚡💜",
+                    message = "You transferred ₦${String.format("%,.2f", amount)} to $recipientName successfully. Hash signature has been added to audit ledger.",
+                    type = "TRANSACTION",
+                    icon = "⚡"
+                )
             }
             _isGraphQLFetching.value = false
         }
@@ -1214,6 +1295,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     // Clear cart
                     database.cartItemDao().clearCart()
                     _successBannerMessage.value = "Secured successfully via $paymentMethod! Ref ID: $confirmationId. $msg. You earned $totalQuantity Silver Pieces! 🪙"
+                    addNotification(
+                        title = "Checkout Order Successful! 🛒⚡",
+                        message = "Your order of $totalQuantity items ($itemsSummary) totaling ₦${String.format(java.util.Locale.US, "%,.2f", total)} was processed successfully. Reference ID: $confirmationId",
+                        type = "TRANSACTION",
+                        icon = "🛒"
+                    )
                 }
             }
             _isGraphQLFetching.value = false
@@ -1266,14 +1353,45 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     // --- COMMUNITY VIBES BOARD (LET'S SHARE VIBES) ---
 
+    private val _vibePostAsBusiness = MutableStateFlow(false)
+    val vibePostAsBusiness: StateFlow<Boolean> = _vibePostAsBusiness.asStateFlow()
+
+    fun toggleVibePostAsBusiness() {
+        _vibePostAsBusiness.value = !_vibePostAsBusiness.value
+    }
+
+    fun setVibePostAsBusiness(value: Boolean) {
+        _vibePostAsBusiness.value = value
+    }
+
     fun updateVibeInputs(author: String?, content: String?) {
         if (author != null) _vibeAuthorInput.value = author
         if (content != null) _vibeContentInput.value = content
     }
 
     fun submitVibe() {
-        val userHandle = userName.value.trim()
-        val author = if (userHandle.isNotEmpty()) userHandle else _vibeAuthorInput.value.trim()
+        var author = userName.value.trim()
+        if (author.isEmpty()) {
+            author = _vibeAuthorInput.value.trim()
+        }
+        var authorType = "USER"
+        var businessId: String? = null
+
+        if (myFreelancerAppStatus.value == "Approved") {
+            authorType = "FREELANCER"
+            businessId = myFreelancerProfileId.value
+        } else if (myBusinessAppStatus.value == "Approved") {
+            val bizName = prefs.getString("my_biz_name", "") ?: ""
+            if (_vibePostAsBusiness.value && bizName.isNotBlank()) {
+                author = bizName
+                authorType = myBusinessCategory.value.uppercase()
+                businessId = myBusinessProfileId.value
+            } else {
+                authorType = "USER"
+                businessId = myBusinessProfileId.value
+            }
+        }
+
         val content = _vibeContentInput.value.trim()
         val photo = _vibeAttachedPhotoInput.value
 
@@ -1291,8 +1409,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             if (photo != null) {
                 variables["attachedPhoto"] = photo
             }
+            variables["authorType"] = authorType
+            if (businessId != null) {
+                variables["businessId"] = businessId
+            }
             val res = graphQLClient.executeGraphQL(GraphQLRequest(
-                query = "mutation PostVibe(\$author: String!, \$content: String!, \$attachedPhoto: String) { addVibe(author: \$author, content: \$content, attachedPhoto: \$attachedPhoto) { id } }",
+                query = "mutation PostVibe(\$author: String!, \$content: String!, \$attachedPhoto: String, \$authorType: String, \$businessId: String) { addVibe(author: \$author, content: \$content, attachedPhoto: \$attachedPhoto, authorType: \$authorType, businessId: \$businessId) { id } }",
                 variables = variables
             ))
 
@@ -1676,7 +1798,567 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             }
         }
     }
+
+    // --- 6. SUPERAPP REGISTRATIONS & ADMIN APPROVAL STATE FLOWS ---
+    private val _pendingEvents = MutableStateFlow<List<EventApplication>>(emptyList())
+    val pendingEvents = _pendingEvents.asStateFlow()
+
+    private val _pendingFreelancers = MutableStateFlow<List<FreelancerApplication>>(emptyList())
+    val pendingFreelancers = _pendingFreelancers.asStateFlow()
+
+    private val _pendingBusinesses = MutableStateFlow<List<BusinessApplication>>(emptyList())
+    val pendingBusinesses = _pendingBusinesses.asStateFlow()
+
+    // Statuses of our own applications
+    private val _myFreelancerAppStatus = MutableStateFlow(prefs.getString("my_freelancer_app_status", "") ?: "") // "", "Pending", "Approved"
+    val myFreelancerAppStatus = _myFreelancerAppStatus.asStateFlow()
+
+    private val _myBusinessAppStatus = MutableStateFlow(prefs.getString("my_business_app_status", "") ?: "") // "", "Pending", "Approved"
+    val myBusinessAppStatus = _myBusinessAppStatus.asStateFlow()
+
+    // Approved Profile Data
+    private val _myFreelancerProfileId = MutableStateFlow(prefs.getString("my_freelancer_profile_id", "") ?: "")
+    val myFreelancerProfileId = _myFreelancerProfileId.asStateFlow()
+
+    private val _myBusinessProfileId = MutableStateFlow(prefs.getString("my_business_profile_id", "") ?: "")
+    val myBusinessProfileId = _myBusinessProfileId.asStateFlow()
+
+    private val _myBusinessCategory = MutableStateFlow(prefs.getString("my_business_category", "") ?: "")
+    val myBusinessCategory = _myBusinessCategory.asStateFlow()
+
+    private val _myBusinessName = MutableStateFlow(prefs.getString("my_biz_name", "") ?: "")
+    val myBusinessName = _myBusinessName.asStateFlow()
+
+    fun initRegistrations() {
+        _pendingFreelancers.value = listOf(
+            FreelancerApplication(
+                id = "pending-free-1",
+                name = "Adebayo Salami",
+                title = "UI/UX & Product Designer",
+                linkedinUrl = "https://linkedin.com/in/adebayo-ui",
+                githubUrl = "https://github.com/adebayoui",
+                backPhotoUrl = "🌆 Lagos Sunset",
+                normalPhotoUrl = "👦 Playful Avatar",
+                skills = "Figma, Material 3, Prototyping, Design Systems",
+                bio = "Crafting user-centered interfaces for mobile products across West Africa.",
+                basePrice = 8000.0,
+                category = "Creative arts"
+            )
+        )
+        _pendingBusinesses.value = listOf(
+            BusinessApplication(
+                id = "pending-biz-1",
+                name = "Yaba Wellness Center",
+                category = "Care Center",
+                cacNumber = "RC-994812",
+                location = "32 Herbert Macaulay Way, Yaba",
+                imageDescription = "🏥 Modern Care Building",
+                services = "Post-Natal Support, Pediatric Physical Therapy, Elderly Assisted Care"
+            )
+        )
+        _pendingEvents.value = listOf(
+            EventApplication(
+                id = "pending-evt-1",
+                title = "Yaba Jollof & Grill Festival",
+                description = "Celebrate the finest Jollof Rice styles in Lagos with live music, pepper challenges, and cold drinks!",
+                isFree = true,
+                couponCode = "JOLLOFVIBES",
+                host = "Yaba Foodies Cohort",
+                date = "July 15, 2026",
+                time = "14:00",
+                venue = "Yaba College of Technology Ground",
+                imageDescription = "🍛 Spicy Jollof Bowl"
+            )
+        )
+    }
+
+    init {
+        // Fetch static catalogs using GraphQL Query abstractions
+        refreshGraphQLCatalogs()
+        // Pre-seed default vibes community posts for immersive layout
+        preseedVibesIfEmpty()
+        initRegistrations()
+
+        // Hook Real-time Web Socket threads listeners
+        webSocketService.safeEmitter.onCreatedThread { thread ->
+            _activeThreads.value = _activeThreads.value + thread
+        }
+        webSocketService.safeEmitter.onAddedUserToThread { userJoin ->
+            _registeredThreadUsers.value = _registeredThreadUsers.value + userJoin
+        }
+    }
+
+    // --- Freelancer Actions ---
+    fun submitFreelancerApplication(
+        name: String,
+        title: String,
+        linkedinUrl: String,
+        githubUrl: String,
+        backPhotoUrl: String,
+        normalPhotoUrl: String,
+        skills: String,
+        bio: String,
+        basePrice: Double,
+        category: String
+    ) {
+        val app = FreelancerApplication(
+            name = name,
+            title = title,
+            linkedinUrl = linkedinUrl,
+            githubUrl = githubUrl,
+            backPhotoUrl = backPhotoUrl,
+            normalPhotoUrl = normalPhotoUrl,
+            skills = skills,
+            bio = bio,
+            basePrice = basePrice,
+            category = category
+        )
+        _pendingFreelancers.value = _pendingFreelancers.value + app
+        _myFreelancerAppStatus.value = "Pending"
+        _myFreelancerProfileId.value = app.id
+        prefs.edit()
+            .putString("my_freelancer_app_status", "Pending")
+            .putString("my_freelancer_profile_id", app.id)
+            .putString("my_free_name", name)
+            .putString("my_free_title", title)
+            .putString("my_free_linkedin", linkedinUrl)
+            .putString("my_free_github", githubUrl)
+            .putString("my_free_back", backPhotoUrl)
+            .putString("my_free_normal", normalPhotoUrl)
+            .putString("my_free_skills", skills)
+            .putString("my_free_bio", bio)
+            .putFloat("my_free_price", basePrice.toFloat())
+            .putString("my_free_category", category)
+            .apply()
+
+        addNotification(
+            title = "Freelancer Application Submitted! 👦📝",
+            message = "Your talent application as a $title has been received. Our administrators are vetting your credentials.",
+            type = "SYSTEM",
+            icon = "📝"
+        )
+        _successBannerMessage.value = "Talent application submitted successfully! Under admin review. ⏱️"
+    }
+
+    // --- Business Actions ---
+    fun submitBusinessApplication(
+        name: String,
+        category: String,
+        cacNumber: String,
+        location: String,
+        imageDescription: String,
+        services: String
+    ) {
+        val app = BusinessApplication(
+            name = name,
+            category = category,
+            cacNumber = cacNumber,
+            location = location,
+            imageDescription = imageDescription,
+            services = services
+        )
+        _pendingBusinesses.value = _pendingBusinesses.value + app
+        _myBusinessAppStatus.value = "Pending"
+        _myBusinessProfileId.value = app.id
+        _myBusinessCategory.value = category
+        _myBusinessName.value = name
+        prefs.edit()
+            .putString("my_business_app_status", "Pending")
+            .putString("my_business_profile_id", app.id)
+            .putString("my_business_category", category)
+            .putString("my_biz_name", name)
+            .putString("my_biz_cac", cacNumber)
+            .putString("my_biz_loc", location)
+            .putString("my_biz_img", imageDescription)
+            .putString("my_biz_services", services)
+            .apply()
+
+        addNotification(
+            title = "Business Application Submitted! 🏢📝",
+            message = "Your business application for '$name' ($category) has been successfully recorded. Under admin verification.",
+            type = "SYSTEM",
+            icon = "📝"
+        )
+        _successBannerMessage.value = "Business application submitted successfully! Under admin review. ⏱️"
+    }
+
+    // --- Event Actions ---
+    fun submitEventApplication(
+        title: String,
+        description: String,
+        isFree: Boolean,
+        couponCode: String,
+        host: String,
+        date: String,
+        time: String,
+        venue: String,
+        imageDescription: String
+    ) {
+        val app = EventApplication(
+            title = title,
+            description = description,
+            isFree = isFree,
+            couponCode = couponCode,
+            host = host,
+            date = date,
+            time = time,
+            venue = venue,
+            imageDescription = imageDescription
+        )
+        _pendingEvents.value = _pendingEvents.value + app
+        addNotification(
+            title = "Event Submission Received! 🎟️✨",
+            message = "Your event '$title' has been submitted for verification. It will appear on the boards once approved.",
+            type = "SYSTEM",
+            icon = "🎟️"
+        )
+        _successBannerMessage.value = "Event submitted successfully! Awaiting admin review. ⏱️"
+    }
+
+    // --- Moderators State Flow ---
+    private val _moderators = MutableStateFlow<Set<String>>(prefs.getStringSet("yanga_moderators", emptySet()) ?: emptySet())
+    val moderators: StateFlow<Set<String>> = _moderators.asStateFlow()
+
+    fun addModerator(email: String) {
+        val current = _moderators.value.toMutableSet()
+        val emailClean = email.lowercase().trim()
+        if (emailClean.isNotBlank()) {
+            current.add(emailClean)
+            _moderators.value = current
+            prefs.edit().putStringSet("yanga_moderators", current).apply()
+            _successBannerMessage.value = "Moderator $emailClean added successfully! 👑"
+        }
+    }
+
+    fun removeModerator(email: String) {
+        val current = _moderators.value.toMutableSet()
+        val emailClean = email.lowercase().trim()
+        if (current.remove(emailClean)) {
+            _moderators.value = current
+            prefs.edit().putStringSet("yanga_moderators", current).apply()
+            _successBannerMessage.value = "Moderator $emailClean removed successfully! 🗑️"
+        }
+    }
+
+    fun rejectFreelancer(appId: String) {
+        _pendingFreelancers.value = _pendingFreelancers.value.filter { it.id != appId }
+        _successBannerMessage.value = "Freelancer application rejected/dismissed. ❌"
+    }
+
+    fun rejectBusiness(appId: String) {
+        _pendingBusinesses.value = _pendingBusinesses.value.filter { it.id != appId }
+        _successBannerMessage.value = "Business application rejected/dismissed. ❌"
+    }
+
+    fun rejectEvent(appId: String) {
+        _pendingEvents.value = _pendingEvents.value.filter { it.id != appId }
+        _successBannerMessage.value = "Event application rejected/dismissed. ❌"
+    }
+
+    fun addMarketInsight(author: String, text: String, category: String) {
+        val id = "Q-${(10..99).random()}"
+        val newQuote = com.example.domain.model.BusinessQuote(id, author, text, category)
+        graphQLClient.quotesCatalog.add(newQuote)
+        refreshGraphQLCatalogs()
+        _successBannerMessage.value = "Market Insight / Vibe added successfully! 💡"
+    }
+
+    // --- Admin Action Methods ---
+    fun approveFreelancer(appId: String) {
+        val app = _pendingFreelancers.value.find { it.id == appId }
+        if (app != null) {
+            _pendingFreelancers.value = _pendingFreelancers.value.filter { it.id != appId }
+            
+            val newProfile = FreelancerProfile(
+                id = app.id,
+                name = app.name,
+                title = app.title,
+                avatarEmoji = if (app.normalPhotoUrl.contains("👦") || app.normalPhotoUrl.contains("avatar")) "👦" else "👤",
+                rating = 5.0,
+                basePrice = app.basePrice,
+                bio = app.bio,
+                category = app.category,
+                portfolioGallery = listOf("Background: " + app.backPhotoUrl, "My First Masterpiece 🎨"),
+                serviceListings = app.skills.split(",").map { it.trim() }.filter { it.isNotEmpty() }.map { "Consulting: $it" },
+                linkedinUrl = app.linkedinUrl,
+                githubUrl = app.githubUrl,
+                skills = app.skills.split(",").map { it.trim() }.filter { it.isNotEmpty() }
+            )
+            graphQLClient.freelancerCatalog.add(newProfile)
+
+            if (appId == _myFreelancerProfileId.value) {
+                _myFreelancerAppStatus.value = "Approved"
+                prefs.edit().putString("my_freelancer_app_status", "Approved").apply()
+                
+                addNotification(
+                    title = "Freelancer Profile Approved! 🎉👦",
+                    message = "Congratulations! Your professional freelancer profile as a ${app.title} is now LIVE on the Services Marketplace.",
+                    type = "SYSTEM",
+                    icon = "🎉"
+                )
+            } else {
+                addNotification(
+                    title = "New Freelancer Approved! 👦🌟",
+                    message = "${app.name} (${app.title}) is now available for hire on Yanga Market!",
+                    type = "SYSTEM",
+                    icon = "🌟"
+                )
+            }
+            refreshGraphQLCatalogs()
+            _successBannerMessage.value = "Freelancer application approved successfully! Profile is now active."
+        }
+    }
+
+    fun approveBusiness(appId: String) {
+        val app = _pendingBusinesses.value.find { it.id == appId }
+        if (app != null) {
+            _pendingBusinesses.value = _pendingBusinesses.value.filter { it.id != appId }
+
+            val isHospitalType = app.category == "Hospital" || app.category == "Care Center" || app.category == "Pharmacy"
+            val isFoodType = app.category == "Restaurant" || app.category == "Bakery" || app.category == "Confectionery"
+            val isRetailType = app.category == "Retail"
+
+            if (isHospitalType) {
+                val newHosp = Hospital(
+                    id = app.id,
+                    name = app.name,
+                    location = app.location,
+                    distanceKm = 1.0,
+                    specialties = app.services.split(",").map { it.trim() }.filter { it.isNotEmpty() },
+                    openHours = "24/7"
+                )
+                graphQLClient.directoryService.addHospital(newHosp)
+            } else if (isFoodType) {
+                val newRest = Restaurant(
+                    id = app.id,
+                    name = app.name,
+                    cuisine = app.category,
+                    rating = 5.0,
+                    address = app.location,
+                    meals = app.services.split(",").map { it.trim() }.filter { it.isNotEmpty() }.map { 
+                        FoodItem(name = it, price = 2500.0, category = app.category, description = "Delicious freshly prepared course offered by ${app.name}.")
+                    }
+                )
+                graphQLClient.restaurantCatalog.add(newRest)
+            } else if (isRetailType) {
+                val newShop = RetailShop(
+                    id = app.id,
+                    nameAndAddress = NameAndAddress(app.name, app.location),
+                    specialty = "General Retail",
+                    distanceKm = 1.0,
+                    items = app.services.split(",").map { it.trim() }.filter { it.isNotEmpty() }.map {
+                        RetailItem(name = it, price = 5000.0, category = "General")
+                    }
+                )
+                graphQLClient.retailShopsCatalog.add(newShop)
+            }
+
+            if (appId == _myBusinessProfileId.value) {
+                _myBusinessAppStatus.value = "Approved"
+                prefs.edit().putString("my_business_app_status", "Approved").apply()
+                
+                addNotification(
+                    title = "Business Profile Approved! 🎉🏢",
+                    message = "Congratulations! Your business '${app.name}' is now APPROVED and live on Yanga Market. Access your merchant profile under Settings.",
+                    type = "SYSTEM",
+                    icon = "🎉"
+                )
+            } else {
+                addNotification(
+                    title = "New Business Registered! 🏢🌟",
+                    message = "'${app.name}' (${app.category}) is now open for patrons on Yanga Market!",
+                    type = "SYSTEM",
+                    icon = "🌟"
+                )
+            }
+            refreshGraphQLCatalogs()
+            _successBannerMessage.value = "Business application approved! Added to directory successfully."
+        }
+    }
+
+    fun approveEvent(appId: String) {
+        val app = _pendingEvents.value.find { it.id == appId }
+        if (app != null) {
+            _pendingEvents.value = _pendingEvents.value.filter { it.id != appId }
+
+            val newEvent = Event(
+                id = app.id,
+                title = app.title,
+                host = app.host,
+                date = app.date,
+                time = app.time,
+                venue = app.venue,
+                rsvpCount = 0,
+                isRsvped = false,
+                price = if (app.isFree) 0.0 else 2500.0,
+                details = app.description,
+                hasFood = true,
+                hasCompetition = false,
+                imageResName = "img_event_festival_1782134258914"
+            )
+            graphQLClient.eventCatalog.add(newEvent)
+
+            addNotification(
+                title = "New Event Approved! 🎟️🎉",
+                message = "The event '${app.title}' has been verified and is now live. Reserve your secure passes today!",
+                type = "SYSTEM",
+                icon = "🎉"
+            )
+            refreshGraphQLCatalogs()
+            _successBannerMessage.value = "Event approved successfully! Published to the Yanga Events board."
+        }
+    }
+
+    // --- Profile Editing / Portfolios / Menus Update ---
+    fun updateFreelancerSkillsAndPortfolio(additionalSkills: String, portfolioItemTitle: String) {
+        val currentId = _myFreelancerProfileId.value
+        if (currentId.isNotEmpty()) {
+            val profile = graphQLClient.freelancerCatalog.find { it.id == currentId }
+            if (profile != null) {
+                graphQLClient.freelancerCatalog.remove(profile)
+
+                val updatedSkills = if (additionalSkills.isNotEmpty()) {
+                    profile.skills + additionalSkills.split(",").map { it.trim() }.filter { it.isNotEmpty() }
+                } else {
+                    profile.skills
+                }
+
+                val updatedGallery = if (portfolioItemTitle.isNotEmpty()) {
+                    profile.portfolioGallery + portfolioItemTitle
+                } else {
+                    profile.portfolioGallery
+                }
+
+                val updatedProfile = profile.copy(
+                    skills = updatedSkills,
+                    portfolioGallery = updatedGallery,
+                    serviceListings = updatedSkills.map { "Premium Service: $it" }
+                )
+                graphQLClient.freelancerCatalog.add(updatedProfile)
+
+                val savedSkills = updatedSkills.joinToString(",")
+                prefs.edit().putString("my_free_skills", savedSkills).apply()
+
+                _successBannerMessage.value = "Freelancer portfolio and skills updated successfully! 🚀"
+                refreshGraphQLCatalogs()
+            }
+        }
+    }
+
+    fun addBusinessItem(itemName: String, itemDescription: String, itemPrice: Double) {
+        val currentId = _myBusinessProfileId.value
+        val category = _myBusinessCategory.value
+        if (currentId.isNotEmpty()) {
+            val isHospitalType = category == "Hospital" || category == "Care Center" || category == "Pharmacy"
+            val isFoodType = category == "Restaurant" || category == "Bakery" || category == "Confectionery"
+            val isRetailType = category == "Retail"
+
+            if (isHospitalType) {
+                val hosp = graphQLClient.directoryService.getAllHospitals().find { it.id == currentId }
+                if (hosp != null) {
+                    val updatedSpecialties = hosp.specialties + itemName
+                    graphQLClient.directoryService.removeHospital(currentId)
+                    val newHosp = Hospital(
+                        id = hosp.id,
+                        name = hosp.name,
+                        location = hosp.location,
+                        distanceKm = hosp.distanceKm,
+                        specialties = updatedSpecialties,
+                        openHours = hosp.openHours
+                    )
+                    graphQLClient.directoryService.addHospital(newHosp)
+                    _successBannerMessage.value = "Health care test/service '$itemName' added successfully! 🩺"
+                }
+            } else if (isFoodType) {
+                val rest = graphQLClient.restaurantCatalog.find { it.id == currentId }
+                if (rest != null) {
+                    graphQLClient.restaurantCatalog.remove(rest)
+                    val newMeal = FoodItem(
+                        name = itemName,
+                        price = itemPrice,
+                        category = category,
+                        description = itemDescription
+                    )
+                    val updatedMeals = rest.meals + newMeal
+                    val newRest = Restaurant(
+                        id = rest.id,
+                        name = rest.name,
+                        cuisine = rest.cuisine,
+                        rating = rest.rating,
+                        address = rest.address,
+                        meals = updatedMeals,
+                        distanceKm = rest.distanceKm,
+                        isTableReserved = rest.isTableReserved,
+                        hasTableBooking = rest.hasTableBooking
+                    )
+                    graphQLClient.restaurantCatalog.add(newRest)
+                    _successBannerMessage.value = "New menu course '$itemName' added successfully! 🍔"
+                }
+            } else if (isRetailType) {
+                val shop = graphQLClient.retailShopsCatalog.find { it.id == currentId }
+                if (shop != null) {
+                    graphQLClient.retailShopsCatalog.remove(shop)
+                    val newItem = RetailItem(
+                        name = itemName,
+                        price = itemPrice,
+                        category = "Special"
+                    )
+                    val updatedItems = shop.items + newItem
+                    val newShop = RetailShop(
+                        id = shop.id,
+                        nameAndAddress = shop.nameAndAddress,
+                        specialty = shop.specialty,
+                        distanceKm = shop.distanceKm,
+                        items = updatedItems
+                    )
+                    graphQLClient.retailShopsCatalog.add(newShop)
+                    _successBannerMessage.value = "Store item '$itemName' successfully listed in retail shop! 🛒"
+                }
+            }
+            refreshGraphQLCatalogs()
+        }
+    }
 }
+
+data class EventApplication(
+    val id: String = UUID.randomUUID().toString(),
+    val title: String,
+    val description: String,
+    val isFree: Boolean,
+    val couponCode: String,
+    val host: String,
+    val date: String,
+    val time: String,
+    val venue: String,
+    val imageDescription: String,
+    val status: String = "Pending"
+)
+
+data class FreelancerApplication(
+    val id: String = UUID.randomUUID().toString(),
+    val name: String,
+    val title: String,
+    val linkedinUrl: String,
+    val githubUrl: String,
+    val backPhotoUrl: String,
+    val normalPhotoUrl: String,
+    val skills: String,
+    val bio: String,
+    val basePrice: Double,
+    val category: String,
+    val status: String = "Pending"
+)
+
+data class BusinessApplication(
+    val id: String = UUID.randomUUID().toString(),
+    val name: String,
+    val category: String,
+    val cacNumber: String,
+    val location: String,
+    val imageDescription: String,
+    val services: String,
+    val status: String = "Pending"
+)
 
 data class YangaComplaint(
     val id: String,
@@ -1685,4 +2367,14 @@ data class YangaComplaint(
     val details: String,
     val timestamp: String,
     val status: String
+)
+
+data class YangaNotification(
+    val id: String,
+    val title: String,
+    val message: String,
+    val timestamp: String,
+    val icon: String, // Emoji representation
+    val isRead: Boolean = false,
+    val type: String // "BONUS", "TRANSACTION", "DRAW", "SYSTEM"
 )

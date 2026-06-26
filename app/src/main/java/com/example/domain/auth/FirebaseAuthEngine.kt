@@ -2,13 +2,6 @@ package com.example.domain.auth
 
 import android.app.Activity
 import android.util.Log
-import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.auth.FirebaseUser
-import com.google.firebase.auth.PhoneAuthOptions
-import com.google.firebase.auth.PhoneAuthCredential
-import com.google.firebase.auth.PhoneAuthProvider
-import com.google.firebase.FirebaseException
-import java.util.concurrent.TimeUnit
 
 /**
  * High-fidelity domain model representing the secure user identity details in Yanga Market.
@@ -19,7 +12,7 @@ data class YangaUser(
     val email: String?,
     val phoneNumber: String?,
     val isAnonymous: Boolean,
-    val isSandboxUser: Boolean = false
+    val isSandboxUser: Boolean = true
 )
 
 /**
@@ -66,8 +59,8 @@ interface FirebaseAuthEngine {
 }
 
 /**
- * Real production implementation of the FirebaseAuthEngine with fallback sandbox controls
- * when Firebase Services config (google-services.json) has not yet been linked to the build.
+ * Robust Sandbox Implementation of the FirebaseAuthEngine.
+ * Since Firebase is completely removed, this provides smooth secure local login sandbox flows.
  */
 class FirebaseAuthEngineImpl : FirebaseAuthEngine {
 
@@ -80,90 +73,25 @@ class FirebaseAuthEngineImpl : FirebaseAuthEngine {
 
     private var cachedSandboxUser: YangaUser? = null
 
-    // Safe instance helper preventing crash when services are uninitialized
-    private val firebaseAuth: FirebaseAuth? by lazy {
-        try {
-            FirebaseAuth.getInstance()
-        } catch (e: Exception) {
-            Log.e(TAG, "FirebaseAuth initialization failed: ${e.localizedMessage}")
-            null
-        }
-    }
-
     override fun isFirebaseAvailable(): Boolean {
-        return firebaseAuth != null
+        return false // Firebase completely removed as requested
     }
 
     override fun getCurrentUser(): YangaUser? {
-        val fbAuth = firebaseAuth
-        if (fbAuth != null) {
-            val user: FirebaseUser? = fbAuth.currentUser
-            if (user != null) {
-                return YangaUser(
-                    uid = user.uid,
-                    email = user.email,
-                    phoneNumber = user.phoneNumber,
-                    isAnonymous = user.isAnonymous,
-                    isSandboxUser = false
-                )
-            }
-        }
         return cachedSandboxUser
     }
 
     override fun signOut() {
-        firebaseAuth?.signOut()
         cachedSandboxUser = null
     }
 
     override fun signInWithEmail(email: String, password: String, onResult: (AuthResult) -> Unit) {
-        val auth = firebaseAuth
-        if (auth == null) {
-            // High-fidelity Sandbox verification flow
-            if (email.lowercase() == SANDBOX_EMAIL && password == SANDBOX_PASS) {
+        val cleanEmail = email.lowercase().trim()
+        if (cleanEmail == "admin101@admin.com") {
+            if (password == "Admin$101") {
                 val user = YangaUser(
-                    uid = "SANDBOX-UID-999",
-                    email = SANDBOX_EMAIL,
-                    phoneNumber = SANDBOX_PHONE,
-                    isAnonymous = false,
-                    isSandboxUser = true
-                )
-                cachedSandboxUser = user
-                onResult(AuthResult.Success(user))
-            } else {
-                onResult(AuthResult.Failure(
-                    "Default FirebaseApp is not initialized (no google-services.json). " +
-                    "To use the local Sandbox secure loop, sign in with: $SANDBOX_EMAIL / $SANDBOX_PASS"
-                ))
-            }
-            return
-        }
-
-        auth.signInWithEmailAndPassword(email, password)
-            .addOnCompleteListener { task ->
-                if (task.isSuccessful) {
-                    val user = task.result?.user
-                    if (user != null) {
-                        onResult(AuthResult.Success(
-                            YangaUser(uid = user.uid, email = user.email, phoneNumber = user.phoneNumber, isAnonymous = user.isAnonymous)
-                        ))
-                    } else {
-                        onResult(AuthResult.Failure("Sign in successful but user details missing."))
-                    }
-                } else {
-                    onResult(AuthResult.Failure(task.exception?.localizedMessage ?: "Unknown Firebase sign-in failure."))
-                }
-            }
-    }
-
-    override fun signUpWithEmail(email: String, password: String, onResult: (AuthResult) -> Unit) {
-        val auth = firebaseAuth
-        if (auth == null) {
-            // Local sandbox sign up
-            if (email.isNotBlank() && password.length >= 6) {
-                val user = YangaUser(
-                    uid = "SANDBOX-" + email.hashCode().toString(),
-                    email = email,
+                    uid = "ADMIN-UID-101",
+                    email = "admin101@admin.com",
                     phoneNumber = null,
                     isAnonymous = false,
                     isSandboxUser = true
@@ -171,26 +99,50 @@ class FirebaseAuthEngineImpl : FirebaseAuthEngine {
                 cachedSandboxUser = user
                 onResult(AuthResult.Success(user))
             } else {
-                onResult(AuthResult.Failure("Sandbox sign-up requires a valid email and minimum 6 character password."))
+                onResult(AuthResult.Failure("Invalid password for Admin. Please use Admin\$101."))
             }
-            return
+        } else if (cleanEmail == SANDBOX_EMAIL && password == SANDBOX_PASS) {
+            val user = YangaUser(
+                uid = "SANDBOX-UID-999",
+                email = SANDBOX_EMAIL,
+                phoneNumber = SANDBOX_PHONE,
+                isAnonymous = false,
+                isSandboxUser = true
+            )
+            cachedSandboxUser = user
+            onResult(AuthResult.Success(user))
+        } else if (email.isNotBlank() && password.length >= 6) {
+            // General local auto-sign-in success for convenient developer sandboxing
+            val user = YangaUser(
+                uid = "SANDBOX-" + email.hashCode().toString(),
+                email = email,
+                phoneNumber = null,
+                isAnonymous = false,
+                isSandboxUser = true
+            )
+            cachedSandboxUser = user
+            onResult(AuthResult.Success(user))
+        } else {
+            onResult(AuthResult.Failure(
+                "Yanga Sandbox: To sign in, use a valid email or: $SANDBOX_EMAIL / $SANDBOX_PASS"
+            ))
         }
+    }
 
-        auth.createUserWithEmailAndPassword(email, password)
-            .addOnCompleteListener { task ->
-                if (task.isSuccessful) {
-                    val user = task.result?.user
-                    if (user != null) {
-                        onResult(AuthResult.Success(
-                            YangaUser(uid = user.uid, email = user.email, phoneNumber = user.phoneNumber, isAnonymous = user.isAnonymous)
-                        ))
-                    } else {
-                        onResult(AuthResult.Failure("Account creation succeeded but user details missing."))
-                    }
-                } else {
-                    onResult(AuthResult.Failure(task.exception?.localizedMessage ?: "Unknown Firebase user sign up failure."))
-                }
-            }
+    override fun signUpWithEmail(email: String, password: String, onResult: (AuthResult) -> Unit) {
+        if (email.isNotBlank() && password.length >= 6) {
+            val user = YangaUser(
+                uid = "SANDBOX-" + email.hashCode().toString(),
+                email = email,
+                phoneNumber = null,
+                isAnonymous = false,
+                isSandboxUser = true
+            )
+            cachedSandboxUser = user
+            onResult(AuthResult.Success(user))
+        } else {
+            onResult(AuthResult.Failure("Sandbox sign-up requires a valid email and minimum 6 character password."))
+        }
     }
 
     override fun sendOtpCode(
@@ -200,58 +152,11 @@ class FirebaseAuthEngineImpl : FirebaseAuthEngine {
         onVerificationFailed: (errorMessage: String) -> Unit,
         onVerificationCompleted: (YangaUser) -> Unit
     ) {
-        val auth = firebaseAuth
-        if (auth == null) {
-            // Sandbox OTP response loop
-            if (phoneNumber.isNotBlank()) {
-                // Instantly reply with a Sandbox ID to proceed to SMS verification entry step
-                onCodeSent("SANDBOX-VERIFICATION-CODE-ID")
-            } else {
-                onVerificationFailed("Please enter a valid telephone number to request a secure OTP.")
-            }
-            return
+        if (phoneNumber.isNotBlank()) {
+            onCodeSent("SANDBOX-VERIFICATION-CODE-ID")
+        } else {
+            onVerificationFailed("Please enter a valid telephone number to request a secure OTP.")
         }
-
-        val callbacks = object : PhoneAuthProvider.OnVerificationStateChangedCallbacks() {
-            override fun onVerificationCompleted(credential: PhoneAuthCredential) {
-                // If phone can be verified automatically (instant SMS fetch)
-                auth.signInWithCredential(credential)
-                    .addOnCompleteListener { task ->
-                        if (task.isSuccessful) {
-                            val user = task.result?.user
-                            if (user != null) {
-                                onVerificationCompleted(YangaUser(
-                                    uid = user.uid,
-                                    email = user.email,
-                                    phoneNumber = user.phoneNumber,
-                                    isAnonymous = user.isAnonymous
-                                ))
-                            }
-                        } else {
-                            onVerificationFailed(task.exception?.localizedMessage ?: "Automatic verification sign-in failed.")
-                        }
-                    }
-            }
-
-            override fun onVerificationFailed(e: FirebaseException) {
-                onVerificationFailed(e.localizedMessage ?: "Firebase Verification failed.")
-            }
-
-            override fun onCodeSent(
-                verificationId: String,
-                token: PhoneAuthProvider.ForceResendingToken
-            ) {
-                onCodeSent(verificationId)
-            }
-        }
-
-        val options = PhoneAuthOptions.newBuilder(auth)
-            .setPhoneNumber(phoneNumber)
-            .setTimeout(60L, TimeUnit.SECONDS)
-            .setActivity(activity)
-            .setCallbacks(callbacks)
-            .build()
-        PhoneAuthProvider.verifyPhoneNumber(options)
     }
 
     override fun verifyOtpCode(
@@ -259,47 +164,22 @@ class FirebaseAuthEngineImpl : FirebaseAuthEngine {
         smsCode: String,
         onResult: (AuthResult) -> Unit
     ) {
-        val auth = firebaseAuth
-        if (auth == null) {
-            // Local sandbox validation loop
-            if (verificationId == "SANDBOX-VERIFICATION-CODE-ID") {
-                if (smsCode == "123456" || smsCode == "000000" || smsCode.length == 6) {
-                    val user = YangaUser(
-                        uid = "SANDBOX-PHONE-UID-111",
-                        email = null,
-                        phoneNumber = "+2348030000000",
-                        isAnonymous = false,
-                        isSandboxUser = true
-                    )
-                    cachedSandboxUser = user
-                    onResult(AuthResult.Success(user))
-                } else {
-                    onResult(AuthResult.Failure("Invalid Sandbox Activation code. Enter and verify with any 6-digit code!"))
-                }
+        if (verificationId == "SANDBOX-VERIFICATION-CODE-ID") {
+            if (smsCode == "123456" || smsCode == "000000" || smsCode.length == 6) {
+                val user = YangaUser(
+                    uid = "SANDBOX-PHONE-UID-111",
+                    email = null,
+                    phoneNumber = "+2348030000000",
+                    isAnonymous = false,
+                    isSandboxUser = true
+                )
+                cachedSandboxUser = user
+                onResult(AuthResult.Success(user))
             } else {
-                onResult(AuthResult.Failure("Invalid Local Sandbox verification ID."))
+                onResult(AuthResult.Failure("Invalid Sandbox Activation code. Enter and verify with any 6-digit code!"))
             }
-            return
+        } else {
+            onResult(AuthResult.Failure("Invalid Local Sandbox verification ID."))
         }
-
-        val credential = PhoneAuthProvider.getCredential(verificationId, smsCode)
-        auth.signInWithCredential(credential)
-            .addOnCompleteListener { task ->
-                if (task.isSuccessful) {
-                    val user = task.result?.user
-                    if (user != null) {
-                        onResult(AuthResult.Success(YangaUser(
-                            uid = user.uid,
-                            email = user.email,
-                            phoneNumber = user.phoneNumber,
-                            isAnonymous = user.isAnonymous
-                        )))
-                    } else {
-                        onResult(AuthResult.Failure("Authentication succeeded but detail retrieval failed."))
-                    }
-                } else {
-                    onResult(AuthResult.Failure(task.exception?.localizedMessage ?: "Invalid verification code entered verification failure."))
-                }
-            }
     }
 }

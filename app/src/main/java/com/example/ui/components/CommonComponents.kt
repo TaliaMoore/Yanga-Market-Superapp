@@ -27,6 +27,12 @@ import androidx.compose.ui.unit.sp
 import com.example.ui.theme.CharcoalBlack
 import com.example.ui.theme.PrimaryPurple
 import com.example.ui.theme.SecondaryYellow
+import androidx.compose.foundation.Canvas
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.unit.Dp
 
 @Composable
 fun YangaStatusBanners(
@@ -331,5 +337,167 @@ fun YangaFlowButtonsLayout(
         verticalArrangement = verticalArrangement,
         content = content
     )
+}
+
+@Composable
+fun PurplePeacockLogo(
+    modifier: Modifier = Modifier,
+    size: Dp = 80.dp
+) {
+    Box(
+        modifier = modifier
+            .size(size)
+            .testTag("purple_peacock_logo"),
+        contentAlignment = Alignment.Center
+    ) {
+        Canvas(modifier = Modifier.fillMaxSize()) {
+            val w = size.toPx()
+            val h = size.toPx()
+            val cx = w / 2f
+            val cy = h / 2f + (h * 0.1f) // slightly lower to make room for tail feathers
+
+            // 1. Draw Fan/Tail Feathers in a beautiful fan array
+            // 7 main plumes radiating from center cy
+            val plumeCount = 7
+            val startAngle = 180f + 25f
+            val endAngle = 360f - 25f
+            val angleStep = if (plumeCount > 1) (endAngle - startAngle) / (plumeCount - 1) else 0f
+            val maxPlumeLength = w * 0.45f
+
+            for (i in 0 until plumeCount) {
+                val angleRad = Math.toRadians((startAngle + i * angleStep).toDouble())
+                val endX = cx + (Math.cos(angleRad) * maxPlumeLength).toFloat()
+                val endY = cy + (Math.sin(angleRad) * maxPlumeLength).toFloat()
+
+                // Plume Shaft
+                drawLine(
+                    color = Color(0xFF8B5CF6), // Purple
+                    start = Offset(cx, cy),
+                    end = Offset(endX, endY),
+                    strokeWidth = 3f,
+                    cap = StrokeCap.Round
+                )
+
+                // Plume Eye (Ocellus)
+                // Draw a golden-yellow circle with green center and orange border
+                drawCircle(
+                    color = Color(0xFFF97316), // Orange
+                    radius = w * 0.08f,
+                    center = Offset(endX, endY)
+                )
+                drawCircle(
+                    color = Color(0xFFFACC15), // Pale Yellow
+                    radius = w * 0.05f,
+                    center = Offset(endX, endY)
+                )
+                drawCircle(
+                    color = Color(0xFF10B981), // Emerald Green
+                    radius = w * 0.025f,
+                    center = Offset(endX, endY)
+                )
+            }
+
+            // 2. Draw Peacock Main Body
+            // Teardrop neck/body
+            val bodyPath = Path().apply {
+                // start at bottom left of body
+                moveTo(cx - w * 0.12f, cy + h * 0.15f)
+                // Curve up to neck/head
+                quadraticTo(
+                    cx - w * 0.15f, cy - h * 0.15f, // control point
+                    cx - w * 0.02f, cy - h * 0.25f  // head base
+                )
+                // Round the head
+                cubicTo(
+                    cx - w * 0.01f, cy - h * 0.35f,
+                    cx + w * 0.12f, cy - h * 0.35f,
+                    cx + w * 0.10f, cy - h * 0.23f
+                )
+                // Curve down to breast
+                quadraticTo(
+                    cx + w * 0.16f, cy + h * 0.02f,
+                    cx + w * 0.12f, cy + h * 0.18f
+                )
+                // Close bottom body curves
+                quadraticTo(
+                    cx, cy + h * 0.22f,
+                    cx - w * 0.12f, cy + h * 0.15f
+                )
+            }
+
+            // Fill main body with vibrant gradient purple
+            drawPath(
+                path = bodyPath,
+                brush = Brush.verticalGradient(
+                    colors = listOf(
+                        Color(0xFF7C3AED), // Vibrant Purple
+                        Color(0xFF4C1D95)  // Deep Indigo
+                    )
+                )
+            )
+
+            // 3. Draw Beak (Orange)
+            val beakPath = Path().apply {
+                moveTo(cx + w * 0.09f, cy - h * 0.27f)
+                lineTo(cx + w * 0.18f, cy - h * 0.24f)
+                lineTo(cx + w * 0.07f, cy - h * 0.21f)
+                close()
+            }
+            drawPath(
+                path = beakPath,
+                color = Color(0xFFF97316) // Vibrant Orange
+            )
+
+            // 4. Draw Eyes (White with Black Pupil)
+            drawCircle(
+                color = Color.White,
+                radius = w * 0.02f,
+                center = Offset(cx + w * 0.04f, cy - h * 0.27f)
+            )
+            drawCircle(
+                color = Color.Black,
+                radius = w * 0.009f,
+                center = Offset(cx + w * 0.045f, cy - h * 0.27f)
+            )
+
+            // 5. Draw Head Crest/Crown Feathers
+            val crestY = cy - h * 0.34f
+            drawLine(
+                color = Color(0xFFFACC15), // Yellow stem
+                start = Offset(cx + w * 0.05f, cy - h * 0.30f),
+                end = Offset(cx + w * 0.02f, crestY),
+                strokeWidth = 2f
+            )
+            drawCircle(
+                color = Color(0xFFEC4899), // Pink dot
+                radius = w * 0.02f,
+                center = Offset(cx + w * 0.02f, crestY)
+            )
+
+            drawLine(
+                color = Color(0xFFFACC15),
+                start = Offset(cx + w * 0.05f, cy - h * 0.30f),
+                end = Offset(cx + w * 0.06f, crestY - 4f),
+                strokeWidth = 2f
+            )
+            drawCircle(
+                color = Color(0xFF8B5CF6), // Purple dot
+                radius = w * 0.02f,
+                center = Offset(cx + w * 0.06f, crestY - 4f)
+            )
+
+            drawLine(
+                color = Color(0xFFFACC15),
+                start = Offset(cx + w * 0.05f, cy - h * 0.30f),
+                end = Offset(cx + w * 0.10f, crestY),
+                strokeWidth = 2f
+            )
+            drawCircle(
+                color = Color(0xFF3B82F6), // Blue dot
+                radius = w * 0.02f,
+                center = Offset(cx + w * 0.10f, crestY)
+            )
+        }
+    }
 }
 

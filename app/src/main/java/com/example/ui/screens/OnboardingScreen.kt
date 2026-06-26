@@ -8,6 +8,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -39,6 +40,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.platform.LocalContext
 import android.app.Activity
 import com.example.ui.MainViewModel
+import com.example.ui.components.PurplePeacockLogo
 import com.example.ui.theme.*
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -52,6 +54,385 @@ data class OnboardingSlide(
     val badge: String
 )
 
+@Composable
+fun SlideGraphics(slideIndex: Int, themeColor: Color, modifier: Modifier = Modifier) {
+    Box(
+        modifier = modifier.size(160.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        when (slideIndex) {
+            0 -> {
+                // Yanga Super App Ecosystem - spaced out icons
+                Box(modifier = Modifier.fillMaxSize()) {
+                    // Central phone/hub representation
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.Center)
+                            .size(70.dp)
+                            .background(themeColor.copy(alpha = 0.15f), CircleShape)
+                            .border(1.5.dp, themeColor, CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text("📱", fontSize = 32.sp)
+                    }
+                    
+                    // Spaced out features around the hub (not muddled)
+                    // Top Left: Food 🍔
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.TopStart)
+                            .offset(x = 10.dp, y = 10.dp)
+                            .size(40.dp)
+                            .background(Color.White, CircleShape)
+                            .border(1.dp, themeColor.copy(alpha = 0.3f), CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text("🍔", fontSize = 20.sp)
+                    }
+                    // Top Right: Retail 🛍️
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .offset(x = (-10).dp, y = 10.dp)
+                            .size(40.dp)
+                            .background(Color.White, CircleShape)
+                            .border(1.dp, themeColor.copy(alpha = 0.3f), CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text("🛍️", fontSize = 20.sp)
+                    }
+                    // Bottom Left: Live shows 🎟️
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.BottomStart)
+                            .offset(x = 10.dp, y = (-10).dp)
+                            .size(40.dp)
+                            .background(Color.White, CircleShape)
+                            .border(1.dp, themeColor.copy(alpha = 0.3f), CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text("🎟️", fontSize = 20.sp)
+                    }
+                    // Bottom Right: Wallet 💳
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)
+                            .offset(x = (-10).dp, y = (-10).dp)
+                            .size(40.dp)
+                            .background(Color.White, CircleShape)
+                            .border(1.dp, themeColor.copy(alpha = 0.3f), CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text("💳", fontSize = 20.sp)
+                    }
+                }
+            }
+            1 -> {
+                // Yanga Supermarket Ecosystem - Globe with interconnected lines
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Canvas(modifier = Modifier.fillMaxSize().padding(12.dp)) {
+                        val strokeWidth = 2.dp.toPx()
+                        val color = themeColor
+                        
+                        // Draw outer circle (world outline)
+                        drawCircle(
+                            color = color.copy(alpha = 0.4f),
+                            radius = size.minDimension / 2,
+                            style = Stroke(width = strokeWidth)
+                        )
+                        
+                        // Draw latitude lines (parallels)
+                        drawOval(
+                            color = color.copy(alpha = 0.15f),
+                            topLeft = Offset(0f, size.height * 0.25f),
+                            size = Size(size.width, size.height * 0.5f),
+                            style = Stroke(width = strokeWidth)
+                        )
+                        
+                        // Draw longitude lines (meridians)
+                        drawOval(
+                            color = color.copy(alpha = 0.15f),
+                            topLeft = Offset(size.width * 0.25f, 0f),
+                            size = Size(size.width * 0.5f, size.height),
+                            style = Stroke(width = strokeWidth)
+                        )
+                        
+                        // Central vertical & horizontal lines
+                        drawLine(
+                            color = color.copy(alpha = 0.15f),
+                            start = Offset(0f, size.height / 2),
+                            end = Offset(size.width, size.height / 2),
+                            strokeWidth = strokeWidth
+                        )
+                        drawLine(
+                            color = color.copy(alpha = 0.15f),
+                            start = Offset(size.width / 2, 0f),
+                            end = Offset(size.width / 2, size.height),
+                            strokeWidth = strokeWidth
+                        )
+                    }
+                    
+                    // Interconnected line nodes (representing supply chain)
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.Center)
+                            .size(50.dp)
+                            .background(Color.White, CircleShape)
+                            .border(1.5.dp, themeColor, CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text("🛒", fontSize = 24.sp)
+                    }
+                    
+                    // Spaced out global supply nodes with mini connection lines
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.TopCenter)
+                            .offset(y = 12.dp)
+                            .size(24.dp)
+                            .background(themeColor, CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text("🌾", fontSize = 12.sp)
+                    }
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)
+                            .offset(x = (-16).dp, y = (-16).dp)
+                            .size(24.dp)
+                            .background(themeColor, CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text("🍏", fontSize = 12.sp)
+                    }
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.BottomStart)
+                            .offset(x = 16.dp, y = (-16).dp)
+                            .size(24.dp)
+                            .background(themeColor, CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text("🚛", fontSize = 12.sp)
+                    }
+                }
+            }
+            2 -> {
+                // Food & Organic Food Marketplace - Basket full of foods
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    // Basket shape behind or at the bottom
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.BottomCenter)
+                            .offset(y = (-15).dp)
+                            .size(100.dp, 60.dp)
+                            .background(Color(0xFF8B5A2B), RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp, topStart = 6.dp, topEnd = 6.dp))
+                            .border(1.5.dp, Color(0xFF5C3A21), RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp, topStart = 6.dp, topEnd = 6.dp)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        // Basket pattern
+                        Text("🧺", fontSize = 48.sp, color = Color.White.copy(alpha = 0.8f))
+                    }
+                    
+                    // Overlapping foods spilling out of the basket (beautifully placed)
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.Center)
+                            .offset(y = (-15).dp)
+                    ) {
+                        // Food 1: Tomato 🍅
+                        Text(
+                            "🍅",
+                            fontSize = 32.sp,
+                            modifier = Modifier
+                                .offset(x = (-25).dp, y = (-20).dp)
+                                .rotate(-15f)
+                        )
+                        // Food 2: Green Apple 🍏
+                        Text(
+                            "🍏",
+                            fontSize = 34.sp,
+                            modifier = Modifier
+                                .offset(x = 0.dp, y = (-30).dp)
+                        )
+                        // Food 3: Banana 🍌
+                        Text(
+                            "🍌",
+                            fontSize = 32.sp,
+                            modifier = Modifier
+                                .offset(x = 25.dp, y = (-22).dp)
+                                .rotate(20f)
+                        )
+                        // Food 4: Grapes 🍇
+                        Text(
+                            "🍇",
+                            fontSize = 28.sp,
+                            modifier = Modifier
+                                .offset(x = (-10).dp, y = (-5).dp)
+                        )
+                        // Food 5: Carrot 🥕
+                        Text(
+                            "🥕",
+                            fontSize = 30.sp,
+                            modifier = Modifier
+                                .offset(x = 15.dp, y = (-5).dp)
+                                .rotate(45f)
+                        )
+                    }
+                }
+            }
+            3 -> {
+                // Freelancer - Two people shaking hands or working
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        // Two people shaking hands as the core image
+                        Text(
+                            text = "🤝",
+                            fontSize = 54.sp
+                        )
+                        Spacer(modifier = Modifier.height(6.dp))
+                        // Workplace tools surrounding it neatly
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(28.dp)
+                                    .background(themeColor.copy(alpha = 0.15f), CircleShape),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text("💻", fontSize = 14.sp)
+                            }
+                            Box(
+                                modifier = Modifier
+                                    .size(28.dp)
+                                    .background(themeColor.copy(alpha = 0.15f), CircleShape),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text("🎨", fontSize = 14.sp)
+                            }
+                            Box(
+                                modifier = Modifier
+                                    .size(28.dp)
+                                    .background(themeColor.copy(alpha = 0.15f), CircleShape),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text("⚙️", fontSize = 14.sp)
+                            }
+                        }
+                    }
+                }
+            }
+            4 -> {
+                // Hospitals and live shows - Hospital on top with a ticket beside it
+                Box(
+                    modifier = Modifier.fillMaxSize()
+                ) {
+                    // Hospital icon on top
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.TopCenter)
+                            .offset(y = 15.dp)
+                            .size(75.dp)
+                            .background(Color.White, RoundedCornerShape(12.dp))
+                            .border(1.5.dp, themeColor, RoundedCornerShape(12.dp)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center
+                        ) {
+                            Text("🏥", fontSize = 36.sp)
+                            Text("CLINIC", fontSize = 9.sp, fontWeight = FontWeight.Black, color = themeColor)
+                        }
+                    }
+                    
+                    // Ticket beside it / slightly lower right (not muddled)
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)
+                            .offset(x = (-15).dp, y = (-15).dp)
+                            .size(60.dp)
+                            .background(Color.White, RoundedCornerShape(8.dp))
+                            .border(1.5.dp, BrandOrange, RoundedCornerShape(8.dp)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center
+                        ) {
+                            Text("🎟️", fontSize = 28.sp)
+                            Text("SHOW", fontSize = 9.sp, fontWeight = FontWeight.Black, color = BrandOrange)
+                        }
+                    }
+                }
+            }
+            5 -> {
+                // Let's Share Community Vibes - Messaging icons: two bubbles from sender and receiver
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Box(modifier = Modifier.size(140.dp)) {
+                        // Sender message bubble (Left)
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.TopStart)
+                                .offset(x = 5.dp, y = 15.dp)
+                                .background(themeColor.copy(alpha = 0.15f), RoundedCornerShape(16.dp, 16.dp, 16.dp, 2.dp))
+                                .border(1.5.dp, themeColor, RoundedCornerShape(16.dp, 16.dp, 16.dp, 2.dp))
+                                .padding(horizontal = 12.dp, vertical = 8.dp)
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Text("🧑", fontSize = 16.sp)
+                                Text("Yo! Jollof? 🌶️", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = CharcoalBlack)
+                            }
+                        }
+                        
+                        // Receiver message bubble (Right)
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.BottomEnd)
+                                .offset(x = (-5).dp, y = (-15).dp)
+                                .background(BrandOrange.copy(alpha = 0.15f), RoundedCornerShape(16.dp, 16.dp, 2.dp, 16.dp))
+                                .border(1.5.dp, BrandOrange, RoundedCornerShape(16.dp, 16.dp, 2.dp, 16.dp))
+                                .padding(horizontal = 12.dp, vertical = 8.dp)
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Text("Pull up! 🚀🍔", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = CharcoalBlack)
+                                Text("👧", fontSize = 16.sp)
+                            }
+                        }
+                        
+                        // Heart connection vibe in the middle
+                        Text(
+                            text = "💖",
+                            fontSize = 24.sp,
+                            modifier = Modifier.align(Alignment.Center)
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
 @OptIn(ExperimentalAnimationApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun OnboardingScreen(
@@ -61,10 +442,10 @@ fun OnboardingScreen(
     val coroutineScope = rememberCoroutineScope()
     
     // Onboarding flow steps:
-    // 0 - 4: Dynamic Info Slides (5 total) Explaining Yanga Superapp sections
-    // 5: Account Authorization Gateway (Google, Email, Phone)
-    // 6: Profile Customization & Dynamic Google Map Pinpointing Page
-    var currentStep by remember { mutableStateOf(if (viewModel.hasOnboarded()) 5 else 0) }
+    // 0 - 5: Dynamic Info Slides (6 total) Explaining Yanga Superapp sections
+    // 6: Account Authorization Gateway (Google, Email, Phone)
+    // 7: Profile Customization & Dynamic Google Map Pinpointing Page
+    var currentStep by remember { mutableStateOf(if (viewModel.hasOnboarded()) 6 else 0) }
     
     // Input parameters
     var emailInput by remember { mutableStateOf("") }
@@ -79,6 +460,11 @@ fun OnboardingScreen(
     var otpSmsCode by remember { mutableStateOf("") }
     val localContext = LocalContext.current
     
+    // Additional Sign-up and Sign-in state parameters
+    var authMode by remember { mutableStateOf("SIGN_UP") } // "SIGN_UP" or "LOG_IN"
+    var authSubPage by remember { mutableStateOf("CHOOSER") } // "CHOOSER", "EMAIL", "PHONE", "GOOGLE_ADVICE"
+    var isSupabaseChecking by remember { mutableStateOf(false) }
+    
     // Profile Fields & Map Data
     var fullNameInput by remember { mutableStateOf("") }
     var locationInput by remember { mutableStateOf("") }
@@ -87,52 +473,59 @@ fun OnboardingScreen(
     var isMapSatellite by remember { mutableStateOf(false) }
     var mapZoomLevel by remember { mutableStateOf(2) } // Scale level
     var isLocationVerified by remember { mutableStateOf(true) } // Custom toggle whether pinpoint is correct
-
+ 
     // Onboarding Dynamic Slides List
     val slides = listOf(
         OnboardingSlide(
-            title = "Yanga Superapp Ecosystem 🌍",
+            title = "Yanga Super App Ecosystem 🌍",
             description = "Welcome to Yanga Market! The ultimate African peer-to-peer Superapp hub. Enjoy lightning-fast food delivery, retail convenience, live entertainment, healthcare, and a secure in-app ledger wallet.",
-            emoji = "🍇🛍️🍔",
+            emoji = "",
             color = PrimaryPurple,
             badge = "SUPERAPP"
         ),
         OnboardingSlide(
-            title = "Food & Organic Fruits Marketplace 🍲🍊",
-            description = "Order appetizing hot delicacies and fresh farm-direct fruits. Inspired by top-tier food logistics like Chowdeck, with dynamic delivery routing built to serve you with absolute speed.",
-            emoji = "🍛🍍🚀",
+            title = "Yanga Supermarket Ecosystem 🛒",
+            description = "Access our global supply network for local convenience. Linking farm-fresh products and household essentials to your doorstep with state-of-the-art cold-chain delivery.",
+            emoji = "",
             color = BrandOrange,
+            badge = "SUPERMARKET"
+        ),
+        OnboardingSlide(
+            title = "Food & Organic Food Marketplace 🍲🍊",
+            description = "Order appetizing hot delicacies and fresh farm-direct fruits. Inspired by top-tier food logistics like Chowdeck, with dynamic delivery routing built to serve you with absolute speed.",
+            emoji = "",
+            color = BrandGreen,
             badge = "YUMMY FOOD"
         ),
         OnboardingSlide(
             title = "Freelance Talents & Safe Escrow 💼🤝",
             description = "Unlock the vibrant local gig economy! Browse, message, and hire verified local professionals. Funds remain cryptographically locked in secure escrow until milestones are fully completed.",
-            emoji = "💻🛠️✨",
+            emoji = "",
             color = PrimaryPurple,
             badge = "FREELANCE"
         ),
         OnboardingSlide(
             title = "Hospital Discovery & Live Shows 🏥🎟️",
             description = "Explore close verified hospital clinics, schedule telehealth virtual sessions, and book VIP tickets to the most trending local musical shows and social events across the city.",
-            emoji = "🩺🏨🎷",
-            color = BrandGreen,
+            emoji = "",
+            color = BrandOrange,
             badge = "CARE & EVENTS"
         ),
         OnboardingSlide(
-            title = "Let's Share Vibes Community 💬🔥",
+            title = "Let's Share Community Vibes 💬🔥",
             description = "Connect effortlessly with buddies! Discuss hotspots, rate restaurants, upload status, and safely share peer-to-peer ledger coin transfers through the modern in-app wallet gateway.",
-            emoji = "📢🎉💖",
+            emoji = "",
             color = BoldGold,
             badge = "LET'S SHARE VIBES"
         )
     )
-
+ 
     // Interactive slide slideshow dynamic slide tick handler
     LaunchedEffect(currentStep) {
-        if (currentStep in 0..4) {
+        if (currentStep in 0..5) {
             // Auto slide every 7 seconds, except if the user interacted
             delay(7000)
-            if (currentStep in 0..3) {
+            if (currentStep in 0..4) {
                 currentStep++
             }
         }
@@ -157,9 +550,8 @@ fun OnboardingScreen(
                                 showGooglePageChooser = false
                                 delay(1500)
                                 viewModel.setLoginDetails(selectedEmail, "Google")
-                                viewModel.authorizeWithGoogle(selectedEmail, selectedName)
                                 isAuthenticating = false
-                                currentStep = 6 // Go to Map Profiler
+                                currentStep = 7 // Go to Map Profiler
                             }
                         },
                         onBack = {
@@ -168,8 +560,8 @@ fun OnboardingScreen(
                     )
                 }
 
-                // STEP 0 to 4: Dynamic Onboarding Slideshow
-                currentStep in 0..4 -> {
+                // STEP 0 to 5: Dynamic Onboarding Slideshow
+                currentStep in 0..5 -> {
                     val slide = slides[currentStep]
                     Column(
                         modifier = Modifier
@@ -185,14 +577,7 @@ fun OnboardingScreen(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(32.dp)
-                                        .background(PrimaryPurple, CircleShape),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Text("Y", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                                }
+                                PurplePeacockLogo(size = 32.dp)
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Text(
                                     text = "Yanga Onboarding",
@@ -210,105 +595,139 @@ fun OnboardingScreen(
                                 modifier = Modifier
                                     .clickable {
                                         viewModel.setOnboarded(true)
-                                        currentStep = 5
+                                        currentStep = 6
                                     }
                                     .testTag("skip_slides_button")
                             )
                         }
 
                         // Sliding Animated Presentation
-                        AnimatedContent(
-                            targetState = slide,
-                            transitionSpec = {
-                                slideInHorizontally { width -> width } + fadeIn() with
-                                        slideOutHorizontally { width -> -width } + fadeOut()
-                            },
-                            modifier = Modifier.weight(1f)
-                        ) { currentSlide ->
-                            Column(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(vertical = 12.dp),
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.Center
-                            ) {
-                                // Dynamic Floating badge
-                                Box(
-                                    modifier = Modifier
-                                        .background(currentSlide.color.copy(alpha = 0.12f), RoundedCornerShape(24.dp))
-                                        .border(1.5.dp, currentSlide.color, RoundedCornerShape(24.dp))
-                                        .padding(horizontal = 14.dp, vertical = 6.dp)
-                                ) {
-                                    Text(
-                                        text = currentSlide.badge,
-                                        fontSize = 11.sp,
-                                        fontWeight = FontWeight.Black,
-                                        color = currentSlide.color
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxWidth()
+                                .pointerInput(currentStep) {
+                                    var accumulatedDrag = 0f
+                                    detectHorizontalDragGestures(
+                                        onDragEnd = {
+                                            accumulatedDrag = 0f
+                                        },
+                                        onDragCancel = {
+                                            accumulatedDrag = 0f
+                                        },
+                                        onHorizontalDrag = { _, dragAmount ->
+                                            accumulatedDrag += dragAmount
+                                            if (accumulatedDrag < -100f) {
+                                                if (currentStep < 5) {
+                                                    currentStep++
+                                                    accumulatedDrag = 0f
+                                                } else {
+                                                    viewModel.setOnboarded(true)
+                                                    currentStep = 6
+                                                }
+                                            } else if (accumulatedDrag > 100f) {
+                                                if (currentStep > 0) {
+                                                    currentStep--
+                                                    accumulatedDrag = 0f
+                                                }
+                                            }
+                                        }
                                     )
                                 }
-                                
-                                Spacer(modifier = Modifier.height(24.dp))
-                                
-                                // Large Animated Emoji Display representing mobile slide features
-                                Box(
+                        ) {
+                            AnimatedContent(
+                                targetState = slide,
+                                transitionSpec = {
+                                    slideInHorizontally { width -> width } + fadeIn() with
+                                            slideOutHorizontally { width -> -width } + fadeOut()
+                                },
+                                modifier = Modifier.fillMaxSize()
+                            ) { currentSlide ->
+                                Column(
                                     modifier = Modifier
-                                        .size(160.dp)
-                                        .background(currentSlide.color.copy(alpha = 0.08f), CircleShape)
-                                        .border(2.dp, currentSlide.color.copy(alpha = 0.3f), CircleShape),
-                                    contentAlignment = Alignment.Center
+                                        .fillMaxWidth()
+                                        .padding(vertical = 12.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.Center
                                 ) {
-                                    // Bouncing/Rotating Animation effect
-                                    val infiniteTransition = rememberInfiniteTransition()
-                                    val rotation by infiniteTransition.animateFloat(
-                                        initialValue = -5f,
-                                        targetValue = 5f,
-                                        animationSpec = infiniteRepeatable(
-                                            animation = tween(1200, easing = EaseInOutSine),
-                                            repeatMode = RepeatMode.Reverse
-                                        )
-                                    )
-                                    val scaleAnim by infiniteTransition.animateFloat(
-                                        initialValue = 0.95f,
-                                        targetValue = 1.05f,
-                                        animationSpec = infiniteRepeatable(
-                                            animation = tween(1000, easing = EaseInOutSine),
-                                            repeatMode = RepeatMode.Reverse
-                                        )
-                                    )
-
-                                    Text(
-                                        text = currentSlide.emoji,
-                                        fontSize = 72.sp,
+                                    // Dynamic Floating badge
+                                    Box(
                                         modifier = Modifier
-                                            .rotate(rotation)
-                                            .scale(scaleAnim)
+                                            .background(currentSlide.color.copy(alpha = 0.12f), RoundedCornerShape(24.dp))
+                                            .border(1.5.dp, currentSlide.color, RoundedCornerShape(24.dp))
+                                            .padding(horizontal = 14.dp, vertical = 6.dp)
+                                    ) {
+                                        Text(
+                                            text = currentSlide.badge,
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.Black,
+                                            color = currentSlide.color
+                                        )
+                                    }
+                                    
+                                    Spacer(modifier = Modifier.height(24.dp))
+                                    
+                                    // Large Animated Display representing mobile slide features with high fidelity graphics
+                                    Box(
+                                        modifier = Modifier
+                                            .size(160.dp)
+                                            .background(currentSlide.color.copy(alpha = 0.08f), CircleShape)
+                                            .border(2.dp, currentSlide.color.copy(alpha = 0.3f), CircleShape),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        // Bouncing/Rotating Animation effect
+                                        val infiniteTransition = rememberInfiniteTransition()
+                                        val rotation by infiniteTransition.animateFloat(
+                                            initialValue = -5f,
+                                            targetValue = 5f,
+                                            animationSpec = infiniteRepeatable(
+                                                animation = tween(1200, easing = EaseInOutSine),
+                                                repeatMode = RepeatMode.Reverse
+                                            )
+                                        )
+                                        val scaleAnim by infiniteTransition.animateFloat(
+                                            initialValue = 0.95f,
+                                            targetValue = 1.05f,
+                                            animationSpec = infiniteRepeatable(
+                                                animation = tween(1000, easing = EaseInOutSine),
+                                                repeatMode = RepeatMode.Reverse
+                                            )
+                                        )
+
+                                        SlideGraphics(
+                                            slideIndex = slides.indexOf(currentSlide),
+                                            themeColor = currentSlide.color,
+                                            modifier = Modifier
+                                                .rotate(rotation)
+                                                .scale(scaleAnim)
+                                        )
+                                    }
+                                    
+                                    Spacer(modifier = Modifier.height(32.dp))
+                                    
+                                    // Title of slide
+                                    Text(
+                                        text = currentSlide.title,
+                                        fontSize = 24.sp,
+                                        fontWeight = FontWeight.Black,
+                                        color = CharcoalBlack,
+                                        textAlign = TextAlign.Center,
+                                        modifier = Modifier.padding(horizontal = 8.dp)
+                                    )
+                                    
+                                    Spacer(modifier = Modifier.height(12.dp))
+                                    
+                                    // Beautiful description
+                                    Text(
+                                        text = currentSlide.description,
+                                        fontSize = 13.sp,
+                                        color = CharcoalBlack.copy(alpha = 0.70f),
+                                        textAlign = TextAlign.Center,
+                                        fontWeight = FontWeight.Medium,
+                                        lineHeight = 19.sp,
+                                        modifier = Modifier.padding(horizontal = 16.dp)
                                     )
                                 }
-                                
-                                Spacer(modifier = Modifier.height(32.dp))
-                                
-                                // Title of slide
-                                Text(
-                                    text = currentSlide.title,
-                                    fontSize = 24.sp,
-                                    fontWeight = FontWeight.Black,
-                                    color = CharcoalBlack,
-                                    textAlign = TextAlign.Center,
-                                    modifier = Modifier.padding(horizontal = 8.dp)
-                                )
-                                
-                                Spacer(modifier = Modifier.height(12.dp))
-                                
-                                // Beautiful description
-                                Text(
-                                    text = currentSlide.description,
-                                    fontSize = 13.sp,
-                                    color = CharcoalBlack.copy(alpha = 0.70f),
-                                    textAlign = TextAlign.Center,
-                                    fontWeight = FontWeight.Medium,
-                                    lineHeight = 19.sp,
-                                    modifier = Modifier.padding(horizontal = 16.dp)
-                                )
                             }
                         }
 
@@ -338,11 +757,11 @@ fun OnboardingScreen(
                             // Navigation Button
                             Button(
                                 onClick = {
-                                    if (currentStep < 4) {
+                                    if (currentStep < 5) {
                                         currentStep++
                                     } else {
                                         viewModel.setOnboarded(true)
-                                        currentStep = 5 // Go to login selection
+                                        currentStep = 6 // Go to login selection
                                     }
                                 },
                                 colors = ButtonDefaults.buttonColors(containerColor = PrimaryPurple),
@@ -356,7 +775,7 @@ fun OnboardingScreen(
                                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                                 ) {
                                     Text(
-                                        text = if (currentStep == 4) "Get Started 🚀" else "Next Step",
+                                        text = if (currentStep == 5) "Get Started 🚀" else "Next Step",
                                         fontWeight = FontWeight.Black,
                                         fontSize = 14.sp,
                                         color = Color.White
@@ -373,8 +792,8 @@ fun OnboardingScreen(
                     }
                 }
 
-                // STEP 5: Auth gateways - Log In with Google, Email, or Telephone
-                currentStep == 5 -> {
+                // STEP 6: Auth gateways - Log In / Sign Up with Google, Email, or Telephone
+                currentStep == 6 -> {
                     Column(
                         modifier = Modifier
                             .fillMaxSize()
@@ -383,312 +802,378 @@ fun OnboardingScreen(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.spacedBy(20.dp)
                     ) {
-                        // Title Header
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            modifier = Modifier.padding(top = 16.dp)
-                        ) {
-                            Text(
-                                text = "Welcome to Yanga Market 🌍",
-                                fontSize = 24.sp,
-                                fontWeight = FontWeight.Black,
-                                color = PrimaryPurple,
-                                textAlign = TextAlign.Center
-                            )
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Text(
-                                text = "Choose a secure method to authorize your account and load the digital ledger passport.",
-                                fontSize = 12.sp,
-                                color = CharcoalBlack.copy(alpha = 0.65f),
-                                textAlign = TextAlign.Center,
-                                fontWeight = FontWeight.Medium,
-                                modifier = Modifier.padding(horizontal = 8.dp)
-                            )
-                        }
-
-                        // Visual Brand Icon
-                        Box(
-                            modifier = Modifier
-                                .size(96.dp)
-                                .background(SecondaryYellow, CircleShape)
-                                .border(3.dp, PrimaryPurple, CircleShape),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.LockOpen,
-                                contentDescription = "Security login icon",
-                                tint = PrimaryPurple,
-                                modifier = Modifier.size(44.dp)
-                            )
-                        }
-
-                        if (isAuthenticating) {
-                            Card(
-                                modifier = Modifier.fillMaxWidth(),
-                                shape = RoundedCornerShape(16.dp),
-                                colors = CardDefaults.cardColors(containerColor = WarmCardWhite),
-                                border = BorderStroke(2.dp, PrimaryPurple.copy(alpha = 0.2f))
-                            ) {
+                        when (authSubPage) {
+                            "CHOOSER" -> {
+                                // Title Header
                                 Column(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(24.dp),
                                     horizontalAlignment = Alignment.CenterHorizontally,
-                                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                                    modifier = Modifier.padding(top = 16.dp)
                                 ) {
-                                    CircularProgressIndicator(color = PrimaryPurple)
                                     Text(
-                                        text = when (chosenMethod) {
-                                            "Google" -> "Performing Google Identity Sign-In Handshake..."
-                                            "Email" -> "Verifying Credentials on Secure Ledger..."
-                                            "Phone" -> "Awaiting SMS Verification Code Hook..."
-                                            else -> "Authorizing credentials..."
-                                        },
-                                        fontSize = 13.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = CharcoalBlack,
+                                        text = if (authMode == "SIGN_UP") "Join Yanga Market 🦚💜" else "Welcome Back ⚡🔑",
+                                        fontSize = 26.sp,
+                                        fontWeight = FontWeight.Black,
+                                        color = PrimaryPurple,
                                         textAlign = TextAlign.Center
                                     )
+                                    Spacer(modifier = Modifier.height(4.dp))
                                     Text(
-                                        text = "Please keep applet open – generating local authentication state variables.",
-                                        fontSize = 11.sp,
-                                        color = CharcoalBlack.copy(alpha = 0.5f),
-                                        textAlign = TextAlign.Center
+                                        text = if (authMode == "SIGN_UP") 
+                                            "Create your secure superapp profile to claim your digital ledger passport and coin purse." 
+                                            else "Enter your secure gateway keys to authorize your ledger wallet session.",
+                                        fontSize = 12.sp,
+                                        color = CharcoalBlack.copy(alpha = 0.65f),
+                                        textAlign = TextAlign.Center,
+                                        fontWeight = FontWeight.Medium,
+                                        modifier = Modifier.padding(horizontal = 8.dp)
                                     )
                                 }
-                            }
-                        } else {
-                            // CHOICES LIST
-                            Column(
-                                modifier = Modifier.fillMaxWidth(),
-                                verticalArrangement = Arrangement.spacedBy(12.dp)
-                            ) {
-                                // 1. CONTINUE WITH GOOGLE
-                                Card(
-                                    shape = RoundedCornerShape(14.dp),
-                                    colors = CardDefaults.cardColors(containerColor = WarmCardWhite),
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .border(2.dp, PrimaryPurple, RoundedCornerShape(14.dp))
-                                        .clickable {
-                                            showGooglePageChooser = true
-                                        }
-                                        .testTag("google_auth_cta"),
-                                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+
+                                // Purple Peacock Logo
+                                Column(
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.Center,
+                                    modifier = Modifier.padding(vertical = 12.dp)
                                 ) {
-                                    Row(
+                                    Box(
                                         modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(16.dp),
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.Center
+                                            .size(110.dp)
+                                            .background(PlayfulCream, CircleShape)
+                                            .border(3.dp, PrimaryPurple, CircleShape),
+                                        contentAlignment = Alignment.Center
                                     ) {
-                                        // Google colored style bullet
-                                        Box(
+                                        PurplePeacockLogo(size = 80.dp)
+                                    }
+                                }
+
+                                if (isSupabaseChecking) {
+                                    Card(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        shape = RoundedCornerShape(16.dp),
+                                        colors = CardDefaults.cardColors(containerColor = WarmCardWhite),
+                                        border = BorderStroke(2.dp, PrimaryPurple.copy(alpha = 0.2f))
+                                    ) {
+                                        Column(
                                             modifier = Modifier
-                                                .size(22.dp)
-                                                .background(Color(0xFFEA4335), CircleShape),
-                                            contentAlignment = Alignment.Center
+                                                .fillMaxWidth()
+                                                .padding(24.dp),
+                                            horizontalAlignment = Alignment.CenterHorizontally,
+                                            verticalArrangement = Arrangement.spacedBy(16.dp)
                                         ) {
-                                            Text("G", color = Color.White, fontWeight = FontWeight.Black, fontSize = 11.sp)
+                                            CircularProgressIndicator(color = PrimaryPurple)
+                                            Text(
+                                                text = "Enabling Supabase Authentication Handshake...",
+                                                fontSize = 13.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = CharcoalBlack,
+                                                textAlign = TextAlign.Center
+                                            )
                                         }
-                                        Spacer(modifier = Modifier.width(12.dp))
+                                    }
+                                } else {
+                                    // Three vertical boxes for authentication
+                                    Column(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        verticalArrangement = Arrangement.spacedBy(14.dp)
+                                    ) {
+                                        // 1. Google Button
+                                        Card(
+                                            shape = RoundedCornerShape(14.dp),
+                                            colors = CardDefaults.cardColors(containerColor = WarmCardWhite),
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .border(2.dp, PrimaryPurple, RoundedCornerShape(14.dp))
+                                                .clickable {
+                                                    coroutineScope.launch {
+                                                        isSupabaseChecking = true
+                                                        delay(1200)
+                                                        isSupabaseChecking = false
+                                                        // Advise user that Supabase Google auth isn't enabled/configured, recommend Email instead!
+                                                        authSubPage = "GOOGLE_ADVICE"
+                                                    }
+                                                }
+                                                .testTag("auth_google_vertical_btn"),
+                                            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                                        ) {
+                                            Row(
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .padding(16.dp),
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.Center
+                                            ) {
+                                                Box(
+                                                    modifier = Modifier
+                                                        .size(22.dp)
+                                                        .background(Color(0xFFEA4335), CircleShape),
+                                                    contentAlignment = Alignment.Center
+                                                ) {
+                                                    Text("G", color = Color.White, fontWeight = FontWeight.Black, fontSize = 11.sp)
+                                                }
+                                                Spacer(modifier = Modifier.width(12.dp))
+                                                Text(
+                                                    text = if (authMode == "SIGN_UP") "Sign up with Google" else "Log in with Google",
+                                                    fontSize = 14.sp,
+                                                    fontWeight = FontWeight.Black,
+                                                    color = CharcoalBlack
+                                                )
+                                            }
+                                        }
+
+                                        // 2. Email Button
+                                        Card(
+                                            shape = RoundedCornerShape(14.dp),
+                                            colors = CardDefaults.cardColors(containerColor = PlayfulCream),
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .border(2.dp, PrimaryPurple, RoundedCornerShape(14.dp))
+                                                .clickable {
+                                                    authSubPage = "EMAIL"
+                                                    isEmailRegistering = (authMode == "SIGN_UP")
+                                                }
+                                                .testTag("auth_email_vertical_btn"),
+                                            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                                        ) {
+                                            Row(
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .padding(16.dp),
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.Center
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Default.Email,
+                                                    contentDescription = "Email Icon",
+                                                    tint = PrimaryPurple,
+                                                    modifier = Modifier.size(20.dp)
+                                                )
+                                                Spacer(modifier = Modifier.width(12.dp))
+                                                Text(
+                                                    text = if (authMode == "SIGN_UP") "Sign up with email" else "Log in with email",
+                                                    fontSize = 14.sp,
+                                                    fontWeight = FontWeight.Black,
+                                                    color = PrimaryPurple
+                                                )
+                                            }
+                                        }
+
+                                        // 3. Phone Button
+                                        Card(
+                                            shape = RoundedCornerShape(14.dp),
+                                            colors = CardDefaults.cardColors(containerColor = PlayfulCream),
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .border(2.dp, PrimaryPurple, RoundedCornerShape(14.dp))
+                                                .clickable {
+                                                    authSubPage = "PHONE"
+                                                }
+                                                .testTag("auth_phone_vertical_btn"),
+                                            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                                        ) {
+                                            Row(
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .padding(16.dp),
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.Center
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Default.Phone,
+                                                    contentDescription = "Phone Icon",
+                                                    tint = PrimaryPurple,
+                                                    modifier = Modifier.size(20.dp)
+                                                )
+                                                Spacer(modifier = Modifier.width(12.dp))
+                                                Text(
+                                                    text = if (authMode == "SIGN_UP") "Sign up with phone number" else "Log in with phone number",
+                                                    fontSize = 14.sp,
+                                                    fontWeight = FontWeight.Black,
+                                                    color = PrimaryPurple
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+
+                                Spacer(modifier = Modifier.height(10.dp))
+
+                                // Toggle account login vs register mode text
+                                Column(
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    if (authMode == "SIGN_UP") {
                                         Text(
-                                            text = "Continue with Google",
+                                            text = "Already have an account? Login",
                                             fontSize = 14.sp,
                                             fontWeight = FontWeight.Black,
-                                            color = CharcoalBlack
+                                            color = Color(0xFFF97316),
+                                            modifier = Modifier
+                                                .clickable {
+                                                    authMode = "LOG_IN"
+                                                }
+                                                .padding(8.dp)
+                                                .testTag("toggle_auth_to_login")
+                                        )
+                                    } else {
+                                        Text(
+                                            text = "Don't have an account? Sign up",
+                                            fontSize = 14.sp,
+                                            fontWeight = FontWeight.Black,
+                                            color = Color(0xFFF97316),
+                                            modifier = Modifier
+                                                .clickable {
+                                                    authMode = "SIGN_UP"
+                                                }
+                                                .padding(8.dp)
+                                                .testTag("toggle_auth_to_signup")
                                         )
                                     }
                                 }
 
-                                Spacer(modifier = Modifier.height(4.dp))
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
+                                Spacer(modifier = Modifier.height(16.dp))
+
+                                Card(
+                                    shape = RoundedCornerShape(12.dp),
+                                    colors = CardDefaults.cardColors(containerColor = SecondaryYellow),
+                                    border = BorderStroke(2.dp, PrimaryPurple),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable {
+                                            viewModel.completeProfileAndLogIn(
+                                                name = "Yanga Guest",
+                                                location = "Lekki Phase 1, Lagos, Nigeria",
+                                                lat = 6.4281,
+                                                lng = 3.4219
+                                            )
+                                        }
+                                        .testTag("instant_sandbox_bypass_btn")
+                                ) {
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(14.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.Center
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.FlashOn,
+                                            contentDescription = "Fast Pass Icon",
+                                            tint = PrimaryPurple,
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(10.dp))
+                                        Text(
+                                            text = "Instant Sandbox Bypass ⚡",
+                                            fontSize = 14.sp,
+                                            fontWeight = FontWeight.Black,
+                                            color = PrimaryPurple
+                                        )
+                                    }
+                                }
+                            }
+
+                            "EMAIL" -> {
+                                // EMAIL SCREEN PAGE
+                                Card(
+                                    shape = RoundedCornerShape(16.dp),
+                                    colors = CardDefaults.cardColors(containerColor = WarmCardWhite),
+                                    border = BorderStroke(2.dp, PrimaryPurple),
                                     modifier = Modifier.fillMaxWidth()
                                 ) {
-                                    Divider(modifier = Modifier.weight(1f), color = PrimaryPurple.copy(alpha = 0.2f))
-                                    Text(
-                                        text = " or alternate options ",
-                                        fontSize = 11.sp,
-                                        color = CharcoalBlack.copy(alpha = 0.40f),
-                                        fontWeight = FontWeight.Bold,
-                                        modifier = Modifier.padding(horizontal = 8.dp)
-                                    )
-                                    Divider(modifier = Modifier.weight(1f), color = PrimaryPurple.copy(alpha = 0.2f))
-                                }
-                                Spacer(modifier = Modifier.height(4.dp))
-
-                                // Select form type switcher
-                                var activeFormType by remember { mutableStateOf<String?>(null) } // "Email" or "Phone"
-
-                                if (activeFormType == null) {
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                    Column(
+                                        modifier = Modifier.padding(20.dp),
+                                        verticalArrangement = Arrangement.spacedBy(14.dp)
                                     ) {
-                                        // Email icon button
-                                        Button(
-                                            onClick = { activeFormType = "Email" },
-                                            colors = ButtonDefaults.buttonColors(containerColor = PlayfulCream),
-                                            shape = RoundedCornerShape(12.dp),
-                                            modifier = Modifier
-                                                .weight(1f)
-                                                .height(50.dp)
-                                                .border(2.dp, PrimaryPurple, RoundedCornerShape(12.dp))
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
                                         ) {
-                                            Row(
-                                                verticalAlignment = Alignment.CenterVertically,
-                                                horizontalArrangement = Arrangement.spacedBy(6.dp)
-                                            ) {
-                                                Icon(Icons.Default.Email, "Email Onboarding", tint = PrimaryPurple)
-                                                Text("Use Email", color = PrimaryPurple, fontWeight = FontWeight.Bold, fontSize = 12.sp)
-                                            }
-                                        }
-
-                                        // Phone icon button
-                                        Button(
-                                            onClick = { activeFormType = "Phone" },
-                                            colors = ButtonDefaults.buttonColors(containerColor = PlayfulCream),
-                                            shape = RoundedCornerShape(12.dp),
-                                            modifier = Modifier
-                                                .weight(1f)
-                                                .height(50.dp)
-                                                .border(2.dp, PrimaryPurple, RoundedCornerShape(12.dp))
-                                        ) {
-                                            Row(
-                                                verticalAlignment = Alignment.CenterVertically,
-                                                horizontalArrangement = Arrangement.spacedBy(6.dp)
-                                            ) {
-                                                Icon(Icons.Default.Phone, "Phone Onboarding", tint = PrimaryPurple)
-                                                Text("Use Phone", color = PrimaryPurple, fontWeight = FontWeight.Bold, fontSize = 12.sp)
-                                            }
-                                        }
-                                    }
-                                } else if (activeFormType == "Email") {
-                                    // EMAIL SIGN IN EXPANSION
-                                    Card(
-                                        shape = RoundedCornerShape(14.dp),
-                                        colors = CardDefaults.cardColors(containerColor = WarmCardWhite),
-                                        border = BorderStroke(2.dp, PrimaryPurple),
-                                        modifier = Modifier.fillMaxWidth()
-                                    ) {
-                                        Column(
-                                            modifier = Modifier.padding(16.dp),
-                                            verticalArrangement = Arrangement.spacedBy(12.dp)
-                                        ) {
-                                            Row(
-                                                modifier = Modifier.fillMaxWidth(),
-                                                horizontalArrangement = Arrangement.SpaceBetween,
-                                                verticalAlignment = Alignment.CenterVertically
-                                            ) {
-                                                Column {
-                                                    Text(
-                                                        text = if (isEmailRegistering) "Register New Account" else "Email Authorization Gateway",
-                                                        fontWeight = FontWeight.Bold,
-                                                        color = PrimaryPurple,
-                                                        fontSize = 13.sp
-                                                    )
-                                                    Text(
-                                                        text = if (viewModel.firebaseAuthEngine.isFirebaseAvailable()) "Firebase Auth Active" else "Yanga Sandbox Enabled",
-                                                        fontSize = 10.sp,
-                                                        color = if (viewModel.firebaseAuthEngine.isFirebaseAvailable()) BrandGreen else BoldGold,
-                                                        fontWeight = FontWeight.Bold
-                                                    )
-                                                }
-                                                Icon(
-                                                    imageVector = Icons.Default.Close,
-                                                    contentDescription = "Close Form",
-                                                    tint = HeartRed,
-                                                    modifier = Modifier
-                                                        .size(18.dp)
-                                                        .clickable { activeFormType = null }
+                                            Column {
+                                                Text(
+                                                    text = if (authMode == "SIGN_UP") "Register via Email" else "Email Sign In",
+                                                    fontWeight = FontWeight.Black,
+                                                    color = PrimaryPurple,
+                                                    fontSize = 16.sp
+                                                )
+                                                Text(
+                                                    text = if (viewModel.firebaseAuthEngine.isFirebaseAvailable()) "Firebase Auth Active" else "Yanga Sandbox Enabled",
+                                                    fontSize = 10.sp,
+                                                    color = if (viewModel.firebaseAuthEngine.isFirebaseAvailable()) BrandGreen else BoldGold,
+                                                    fontWeight = FontWeight.Bold
                                                 )
                                             }
-
-                                            // Tab selection
-                                            Row(
-                                                modifier = Modifier
-                                                    .fillMaxWidth()
-                                                    .background(PlayfulBg, RoundedCornerShape(8.dp))
-                                                    .padding(4.dp)
+                                            IconButton(
+                                                onClick = { authSubPage = "CHOOSER" },
+                                                modifier = Modifier.testTag("email_back_to_chooser_btn")
                                             ) {
-                                                Box(
-                                                    modifier = Modifier
-                                                        .weight(1f)
-                                                        .background(if (!isEmailRegistering) Color.White else Color.Transparent, RoundedCornerShape(6.dp))
-                                                        .clickable { isEmailRegistering = false }
-                                                        .padding(vertical = 6.dp),
-                                                    contentAlignment = Alignment.Center
-                                                ) {
-                                                    Text("Sign In", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = if (!isEmailRegistering) PrimaryPurple else Color.Gray)
-                                                }
-                                                Box(
-                                                    modifier = Modifier
-                                                        .weight(1f)
-                                                        .background(if (isEmailRegistering) Color.White else Color.Transparent, RoundedCornerShape(6.dp))
-                                                        .clickable { isEmailRegistering = true }
-                                                        .padding(vertical = 6.dp),
-                                                    contentAlignment = Alignment.Center
-                                                ) {
-                                                    Text("Register", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = if (isEmailRegistering) PrimaryPurple else Color.Gray)
-                                                }
+                                                Icon(Icons.Default.Close, "Back", tint = HeartRed)
                                             }
+                                        }
 
-                                            OutlinedTextField(
-                                                value = emailInput,
-                                                onValueChange = { emailInput = it },
-                                                label = { Text("Enter Email Address") },
-                                                placeholder = { Text(if (!viewModel.firebaseAuthEngine.isFirebaseAvailable()) "e.g. sandbox@yanga.live" else "e.g. eniola@yanga.live") },
-                                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
-                                                modifier = Modifier.fillMaxWidth().testTag("email_input_field"),
-                                                shape = RoundedCornerShape(10.dp)
-                                            )
+                                        OutlinedTextField(
+                                            value = emailInput,
+                                            onValueChange = { emailInput = it },
+                                            label = { Text("Enter Email Address") },
+                                            placeholder = { Text(if (!viewModel.firebaseAuthEngine.isFirebaseAvailable()) "e.g. sandbox@yanga.live" else "e.g. eniola@yanga.live") },
+                                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
+                                            modifier = Modifier.fillMaxWidth().testTag("email_input_field"),
+                                            shape = RoundedCornerShape(10.dp)
+                                        )
 
-                                            OutlinedTextField(
-                                                value = passwordInput,
-                                                onValueChange = { passwordInput = it },
-                                                label = { Text(if (isEmailRegistering) "Choose Password (min 6 chars)" else "Enter Account Password") },
-                                                visualTransformation = PasswordVisualTransformation(),
-                                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                                        OutlinedTextField(
+                                            value = passwordInput,
+                                            onValueChange = { passwordInput = it },
+                                            label = { Text("Enter Password (min 6 chars)") },
+                                            visualTransformation = PasswordVisualTransformation(),
+                                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                                            modifier = Modifier.fillMaxWidth().testTag("email_password_field"),
+                                            shape = RoundedCornerShape(10.dp)
+                                        )
+
+                                        if (!viewModel.firebaseAuthEngine.isFirebaseAvailable()) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .background(BoldGold.copy(alpha = 0.08f), RoundedCornerShape(8.dp))
+                                                    .border(1.dp, BoldGold.copy(alpha = 0.2f), RoundedCornerShape(8.dp))
+                                                    .padding(8.dp)
+                                            ) {
+                                                Text(
+                                                    text = "Sandbox bypass: Sign in with \"sandbox@yanga.live\" & password \"yanga2026\". Sign up registers any custom details instantly.",
+                                                    fontSize = 10.sp,
+                                                    color = CharcoalBlack.copy(alpha = 0.7f),
+                                                    lineHeight = 14.sp
+                                                )
+                                            }
+                                        }
+
+                                        if (isAuthenticating) {
+                                            Row(
                                                 modifier = Modifier.fillMaxWidth(),
-                                                shape = RoundedCornerShape(10.dp)
-                                            )
-
-                                            if (!viewModel.firebaseAuthEngine.isFirebaseAvailable()) {
-                                                Box(
-                                                    modifier = Modifier
-                                                        .background(BoldGold.copy(alpha = 0.08f), RoundedCornerShape(8.dp))
-                                                        .border(1.dp, BoldGold.copy(alpha = 0.2f), RoundedCornerShape(8.dp))
-                                                        .padding(8.dp)
-                                                ) {
-                                                    Text(
-                                                        text = "Sandbox details: Sign in with \"sandbox@yanga.live\" & password \"yanga2026\". Registration adds new custom profiles instantly.",
-                                                        fontSize = 10.sp,
-                                                        color = CharcoalBlack.copy(alpha = 0.7f),
-                                                        lineHeight = 14.sp
-                                                    )
-                                                }
+                                                horizontalArrangement = Arrangement.Center
+                                            ) {
+                                                CircularProgressIndicator(color = PrimaryPurple)
                                             }
-
+                                        } else {
                                             Button(
                                                 onClick = {
                                                     if (emailInput.contains("@") && passwordInput.length >= 6) {
                                                         coroutineScope.launch {
                                                             chosenMethod = "Email"
                                                             isAuthenticating = true
-                                                            if (isEmailRegistering) {
+                                                            if (authMode == "SIGN_UP") {
                                                                 viewModel.firebaseEmailSignUp(emailInput, passwordInput) { success ->
                                                                     isAuthenticating = false
                                                                     if (success) {
-                                                                        currentStep = 6
+                                                                        currentStep = 7
                                                                     }
                                                                 }
                                                             } else {
                                                                 viewModel.firebaseEmailSignIn(emailInput, passwordInput) { success ->
                                                                     isAuthenticating = false
                                                                     if (success) {
-                                                                        currentStep = 6
+                                                                        currentStep = 7
                                                                     }
                                                                 }
                                                             }
@@ -698,158 +1183,183 @@ fun OnboardingScreen(
                                                 enabled = emailInput.isNotBlank() && passwordInput.length >= 6,
                                                 colors = ButtonDefaults.buttonColors(containerColor = PrimaryPurple),
                                                 shape = RoundedCornerShape(10.dp),
-                                                modifier = Modifier.fillMaxWidth().height(46.dp).testTag("email_submit_button")
+                                                modifier = Modifier.fillMaxWidth().height(48.dp).testTag("email_submit_button")
                                             ) {
-                                                Text(if (isEmailRegistering) "Create Account 🚀" else "Login & Verify 🔑", color = Color.White, fontWeight = FontWeight.Bold)
+                                                Text(if (authMode == "SIGN_UP") "Register Account 🚀" else "Verify & Login 🔑", color = Color.White, fontWeight = FontWeight.Bold)
                                             }
                                         }
                                     }
-                                } else if (activeFormType == "Phone") {
-                                    // PHONE SIGN IN EXPANSION
-                                    Card(
-                                        shape = RoundedCornerShape(14.dp),
-                                        colors = CardDefaults.cardColors(containerColor = WarmCardWhite),
-                                        border = BorderStroke(2.dp, PrimaryPurple),
-                                        modifier = Modifier.fillMaxWidth()
+                                }
+                            }
+
+                            "PHONE" -> {
+                                // PHONE SCREEN PAGE
+                                Card(
+                                    shape = RoundedCornerShape(16.dp),
+                                    colors = CardDefaults.cardColors(containerColor = WarmCardWhite),
+                                    border = BorderStroke(2.dp, PrimaryPurple),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Column(
+                                        modifier = Modifier.padding(20.dp),
+                                        verticalArrangement = Arrangement.spacedBy(14.dp)
                                     ) {
-                                        Column(
-                                            modifier = Modifier.padding(16.dp),
-                                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
                                         ) {
+                                            Column {
+                                                Text(
+                                                    text = if (authMode == "SIGN_UP") "Register via Phone" else "Phone Sign In",
+                                                    fontWeight = FontWeight.Black,
+                                                    color = PrimaryPurple,
+                                                    fontSize = 16.sp
+                                                )
+                                                Text(
+                                                    text = if (viewModel.firebaseAuthEngine.isFirebaseAvailable()) "Firebase SMS Active" else "Yanga Carrier Simulator",
+                                                    fontSize = 10.sp,
+                                                    color = if (viewModel.firebaseAuthEngine.isFirebaseAvailable()) BrandGreen else BoldGold,
+                                                    fontWeight = FontWeight.Bold
+                                                )
+                                            }
+                                            IconButton(
+                                                onClick = { authSubPage = "CHOOSER" },
+                                                modifier = Modifier.testTag("phone_back_to_chooser_btn")
+                                            ) {
+                                                Icon(Icons.Default.Close, "Back", tint = HeartRed)
+                                            }
+                                        }
+
+                                        OutlinedTextField(
+                                            value = phoneInput,
+                                            onValueChange = { phoneInput = it },
+                                            label = { Text("Enter Mobile Phone Number") },
+                                            placeholder = { Text("e.g. +234 803 123 4567") },
+                                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+                                            modifier = Modifier.fillMaxWidth().testTag("phone_input_field"),
+                                            shape = RoundedCornerShape(10.dp)
+                                        )
+
+                                        OutlinedTextField(
+                                            value = passwordInput,
+                                            onValueChange = { passwordInput = it },
+                                            label = { Text("Enter Password (min 6 chars)") },
+                                            visualTransformation = PasswordVisualTransformation(),
+                                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                                            modifier = Modifier.fillMaxWidth().testTag("phone_password_field"),
+                                            shape = RoundedCornerShape(10.dp)
+                                        )
+
+                                        if (!viewModel.firebaseAuthEngine.isFirebaseAvailable()) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .background(BoldGold.copy(alpha = 0.08f), RoundedCornerShape(8.dp))
+                                                    .border(1.dp, BoldGold.copy(alpha = 0.2f), RoundedCornerShape(8.dp))
+                                                    .padding(8.dp)
+                                            ) {
+                                                Text(
+                                                    text = "Sandbox phone simulation bypass enabled. Any phone and password will log you in instantly to the secure ledger.",
+                                                    fontSize = 10.sp,
+                                                    color = CharcoalBlack.copy(alpha = 0.7f),
+                                                    lineHeight = 14.sp
+                                                )
+                                            }
+                                        }
+
+                                        if (isAuthenticating) {
                                             Row(
                                                 modifier = Modifier.fillMaxWidth(),
-                                                horizontalArrangement = Arrangement.SpaceBetween,
-                                                verticalAlignment = Alignment.CenterVertically
+                                                horizontalArrangement = Arrangement.Center
                                             ) {
-                                                Column {
-                                                    Text(
-                                                        text = if (smsVerificationId == null) "SMS Phone Verification" else "Verify Security OTP Code",
-                                                        fontWeight = FontWeight.Bold,
-                                                        color = PrimaryPurple,
-                                                        fontSize = 13.sp
-                                                    )
-                                                    Text(
-                                                        text = if (viewModel.firebaseAuthEngine.isFirebaseAvailable()) "Firebase SMS Gateway" else "Yanga Carrier Simulator",
-                                                        fontSize = 10.sp,
-                                                        color = if (viewModel.firebaseAuthEngine.isFirebaseAvailable()) BrandGreen else BoldGold,
-                                                        fontWeight = FontWeight.Bold
-                                                    )
-                                                }
-                                                Icon(
-                                                    imageVector = Icons.Default.Close,
-                                                    contentDescription = "Close Form",
-                                                    tint = HeartRed,
-                                                    modifier = Modifier
-                                                        .size(18.dp)
-                                                        .clickable { 
-                                                            activeFormType = null 
-                                                            smsVerificationId = null
-                                                        }
-                                                )
+                                                CircularProgressIndicator(color = PrimaryPurple)
                                             }
-
-                                            if (smsVerificationId == null) {
-                                                OutlinedTextField(
-                                                    value = phoneInput,
-                                                    onValueChange = { phoneInput = it },
-                                                    label = { Text("Enter Mobile Phone Number") },
-                                                    placeholder = { Text("e.g. +234 803 123 4567") },
-                                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
-                                                    modifier = Modifier.fillMaxWidth().testTag("phone_input_field"),
-                                                    shape = RoundedCornerShape(10.dp)
-                                                )
-
-                                                Button(
-                                                    onClick = {
-                                                        if (phoneInput.length >= 7) {
-                                                            coroutineScope.launch {
-                                                                chosenMethod = "Phone"
-                                                                isAuthenticating = true
-                                                                val activity = localContext as? Activity
-                                                                if (activity != null) {
-                                                                    viewModel.firebaseRequestOtp(
-                                                                        phoneNumber = phoneInput,
-                                                                        activity = activity,
-                                                                        onCodeSent = { verId ->
-                                                                            smsVerificationId = verId
-                                                                            isAuthenticating = false
-                                                                        },
-                                                                        onError = {
-                                                                            isAuthenticating = false
-                                                                        }
-                                                                    )
-                                                                } else {
-                                                                    // Fallback in case context cast fails
-                                                                    smsVerificationId = "SANDBOX-VERIFICATION-CODE-ID"
-                                                                    isAuthenticating = false
-                                                                }
-                                                            }
+                                        } else {
+                                            Button(
+                                                onClick = {
+                                                    if (phoneInput.length >= 7 && passwordInput.length >= 6) {
+                                                        coroutineScope.launch {
+                                                            chosenMethod = "Phone"
+                                                            isAuthenticating = true
+                                                            delay(1000)
+                                                            // Mock telephone registry in local sandbox state variables
+                                                            viewModel.setLoginDetails(phoneInput, "Phone")
+                                                            isAuthenticating = false
+                                                            currentStep = 7
                                                         }
-                                                    },
-                                                    enabled = phoneInput.length >= 7,
-                                                    colors = ButtonDefaults.buttonColors(containerColor = PrimaryPurple),
-                                                    shape = RoundedCornerShape(10.dp),
-                                                    modifier = Modifier.fillMaxWidth().height(46.dp).testTag("phone_submit_button")
-                                                ) {
-                                                    Text("Request OTP Secure Code 📲", color = Color.White, fontWeight = FontWeight.Bold)
-                                                }
-                                            } else {
-                                                // OTP Code Field
-                                                Text(
-                                                    text = "We have sent a verification code to $phoneInput. Please check your SMS and paste the Code below.",
-                                                    fontSize = 11.sp,
-                                                    color = CharcoalBlack.copy(alpha = 0.7f),
-                                                    lineHeight = 15.sp
-                                                )
-
-                                                OutlinedTextField(
-                                                    value = otpSmsCode,
-                                                    onValueChange = { otpSmsCode = it },
-                                                    label = { Text("6-Digit Verification Code") },
-                                                    placeholder = { Text(if (!viewModel.firebaseAuthEngine.isFirebaseAvailable()) "Sandbox bypass: 123456" else "e.g. 583920") },
-                                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                                                    modifier = Modifier.fillMaxWidth().testTag("otp_code_field"),
-                                                    shape = RoundedCornerShape(10.dp)
-                                                )
-
-                                                Row(
-                                                    modifier = Modifier.fillMaxWidth(),
-                                                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                                                ) {
-                                                    OutlinedButton(
-                                                        onClick = { smsVerificationId = null },
-                                                        shape = RoundedCornerShape(10.dp),
-                                                        modifier = Modifier.weight(1f)
-                                                    ) {
-                                                        Text("Back", color = PrimaryPurple)
                                                     }
-
-                                                    Button(
-                                                        onClick = {
-                                                            if (otpSmsCode.length >= 6) {
-                                                                coroutineScope.launch {
-                                                                    isAuthenticating = true
-                                                                    viewModel.firebaseVerifyOtp(
-                                                                        verificationId = smsVerificationId!!,
-                                                                        smsCode = otpSmsCode
-                                                                    ) { success ->
-                                                                        isAuthenticating = false
-                                                                        if (success) {
-                                                                            currentStep = 6
-                                                                        }
-                                                                    }
-                                                                }
-                                                            }
-                                                        },
-                                                        enabled = otpSmsCode.length >= 6,
-                                                        colors = ButtonDefaults.buttonColors(containerColor = PrimaryPurple),
-                                                        shape = RoundedCornerShape(10.dp),
-                                                        modifier = Modifier.weight(1.5f).height(46.dp).testTag("otp_verify_button")
-                                                    ) {
-                                                        Text("Verify & Go 🔒", color = Color.White, fontWeight = FontWeight.Bold)
-                                                    }
-                                                }
+                                                },
+                                                enabled = phoneInput.length >= 7 && passwordInput.length >= 6,
+                                                colors = ButtonDefaults.buttonColors(containerColor = PrimaryPurple),
+                                                shape = RoundedCornerShape(10.dp),
+                                                modifier = Modifier.fillMaxWidth().height(48.dp).testTag("phone_submit_button")
+                                            ) {
+                                                Text(if (authMode == "SIGN_UP") "Register Account 🚀" else "Verify & Login 🔑", color = Color.White, fontWeight = FontWeight.Bold)
                                             }
+                                        }
+                                    }
+                                }
+                            }
+
+                            "GOOGLE_ADVICE" -> {
+                                // ADVICE SCREEN ON GOOGLE OPTION IF NOT ENABLED IN SUPABASE
+                                Card(
+                                    shape = RoundedCornerShape(16.dp),
+                                    colors = CardDefaults.cardColors(containerColor = Color(0xFFFEF3C7)), // Yellow-orange warning backdrop
+                                    border = BorderStroke(2.dp, Color(0xFFF59E0B)),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Column(
+                                        modifier = Modifier.padding(20.dp),
+                                        verticalArrangement = Arrangement.spacedBy(16.dp),
+                                        horizontalAlignment = Alignment.CenterHorizontally
+                                    ) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(60.dp)
+                                                .background(Color.White, CircleShape),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Text("⚠️", fontSize = 28.sp)
+                                        }
+
+                                        Text(
+                                            text = "Supabase Auth Not Enabled!",
+                                            fontWeight = FontWeight.Black,
+                                            fontSize = 18.sp,
+                                            color = Color(0xFF92400E),
+                                            textAlign = TextAlign.Center
+                                        )
+
+                                        Text(
+                                            text = "The Google Sign-In option requires enabling Supabase Authentication with valid project credentials. Since it is not enabled in Supabase, we advise you to register with email instead.",
+                                            fontSize = 13.sp,
+                                            color = Color(0xFF92400E).copy(alpha = 0.9f),
+                                            lineHeight = 18.sp,
+                                            textAlign = TextAlign.Center,
+                                            fontWeight = FontWeight.Medium
+                                        )
+
+                                        Button(
+                                            onClick = {
+                                                authMode = "SIGN_UP"
+                                                authSubPage = "EMAIL"
+                                            },
+                                            colors = ButtonDefaults.buttonColors(containerColor = PrimaryPurple),
+                                            shape = RoundedCornerShape(10.dp),
+                                            modifier = Modifier.fillMaxWidth().height(46.dp).testTag("google_advice_register_email_btn")
+                                        ) {
+                                            Text("Register with Email Instead 🚀", color = Color.White, fontWeight = FontWeight.Bold)
+                                        }
+
+                                        OutlinedButton(
+                                            onClick = { authSubPage = "CHOOSER" },
+                                            colors = ButtonDefaults.outlinedButtonColors(contentColor = PrimaryPurple),
+                                            border = BorderStroke(1.5.dp, PrimaryPurple),
+                                            shape = RoundedCornerShape(10.dp),
+                                            modifier = Modifier.fillMaxWidth().height(44.dp)
+                                        ) {
+                                            Text("Go Back to Choices", fontWeight = FontWeight.Bold)
                                         }
                                     }
                                 }
@@ -875,8 +1385,8 @@ fun OnboardingScreen(
                     }
                 }
 
-                // STEP 6: Complete Profile Setup & Google Maps PINPOINT GPS Verification View
-                currentStep == 6 -> {
+                // STEP 7: Complete Profile Setup & Google Maps PINPOINT GPS Verification View
+                currentStep == 7 -> {
                     val globalEmailOrPhone by viewModel.userPhoneOrEmail.collectAsState()
                     val globalMethod by viewModel.loginMethod.collectAsState()
                     
@@ -1048,8 +1558,8 @@ fun OnboardingScreen(
                                     onMapClicked = { clickOffset, canvasSize ->
                                         // Clicking on Map pinpoints coordinate!
                                         // Convert relative clicking coordinates to simulated Lat/Lng shifts
-                                        val percentX = clickOffset.x / canvasSize.width
-                                        val percentY = clickOffset.y / canvasSize.height
+                                        val percentX = (clickOffset.x / canvasSize.width).toDouble()
+                                        val percentY = (clickOffset.y / canvasSize.height).toDouble()
                                         
                                         // Map center represents 6.45, 3.40. Add offsets
                                         latitude = 6.45 + (0.5 - percentY) * 0.15

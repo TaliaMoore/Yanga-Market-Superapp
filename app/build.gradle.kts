@@ -69,8 +69,9 @@ secrets {
 // This makes it easy to add them back in the future if needed.
 dependencies {
   implementation(platform(libs.androidx.compose.bom))
-  implementation(platform(libs.firebase.bom))
-  implementation(libs.firebase.auth)
+  // Firebase has been removed completely
+  // implementation(platform(libs.firebase.bom))
+  // implementation(libs.firebase.auth)
   // implementation(libs.accompanist.permissions)
   implementation(libs.androidx.activity.compose)
   // implementation(libs.androidx.camera.camera2)
@@ -101,6 +102,10 @@ dependencies {
   implementation(libs.okhttp)
   // implementation(libs.play.services.location)
   implementation(libs.retrofit)
+  implementation("io.github.jan-tennert.supabase:auth-kt:3.0.0")
+  implementation("io.github.jan-tennert.supabase:postgrest-kt:3.0.0")
+  implementation("io.github.jan-tennert.supabase:compose-auth:3.0.0")
+  implementation("io.ktor:ktor-client-okhttp:3.0.0")
   testImplementation(libs.androidx.compose.ui.test.junit4)
   testImplementation(libs.androidx.core)
   testImplementation(libs.androidx.junit)

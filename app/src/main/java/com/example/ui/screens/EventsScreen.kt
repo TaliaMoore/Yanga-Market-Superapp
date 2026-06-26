@@ -51,7 +51,7 @@ fun EventsScreen(
         item {
             YangaHeader(
                 title = "Yanga Events! 🎟️✨",
-                subtitle = "Discover younger vibes, concerts, culinary food exposures & tech networking meets",
+                subtitle = "Discover Yanga vibes, concerts, culinary food exposures & tech networking meets",
                 icon = Icons.Default.ConfirmationNumber
             )
         }

@@ -5,6 +5,8 @@ import com.example.data.database.*
 import androidx.room.withTransaction
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.Dispatchers
 import java.security.MessageDigest
 import java.util.UUID
 import com.example.R
@@ -216,7 +218,7 @@ class MockGraphQLClient(
         FoodItem(name = "Avocado & Banana Smoothie Pack", price = 1350.0, category = "Fruits", description = "Ready-to-blend mix of fresh green butter avocados and sweet local yellow bananas.", isFruit = true)
     )
 
-    val retailShopsCatalog = listOf(
+    val retailShopsCatalog = mutableListOf(
         RetailShop(name = "Choice Supermarket", specialty = "Supermarket", distanceKm = 0.8, items = listOf(
             RetailItem(name = "Premium Basmati Rice 5kg", price = 8500.0, category = "Groceries"),
             RetailItem(name = "Whole Milk Pack (6 Carton)", price = 4800.0, category = "Dairy"),
@@ -246,7 +248,7 @@ class MockGraphQLClient(
         ))
     )
 
-    val eventCatalog = listOf(
+    val eventCatalog = mutableListOf(
         Event(
             title = "Yanga Vibes Festival & Concert",
             host = "Yanga Entertainment",
@@ -295,7 +297,7 @@ class MockGraphQLClient(
         Hospital(name = "Ikeja Medical Center", location = "11 Toyin St, Ikeja LGA", distanceKm = 7.5, specialties = listOf("General Practitioner", "Dentist", "Optician (Eye Care)", "Pediatrician (Child Specialist)", "Gynecologist (Maternity)"))
     )
 
-    val restaurantCatalog = listOf(
+    val restaurantCatalog = mutableListOf(
         Restaurant(
             name = "Yanga Golden Crumb Bakery",
             cuisine = "Bakery",
@@ -365,7 +367,7 @@ class MockGraphQLClient(
         )
     )
 
-    val quotesCatalog = listOf(
+    val quotesCatalog = mutableListOf(
         BusinessQuote("Q-01", "Balogun Merchant", "Style is the signature of your soul. Make it bold, make it loud.", "Fashion"),
         BusinessQuote("Q-02", "Alaba Tech Guru", "A powerbank in hand is worth two in the shop. Stay fully charged always.", "Electronics"),
         BusinessQuote("Q-03", "Mega Rite Grocer", "Quality is not an act, it is a habit of parboiled premium choice.", "Groceries"),
@@ -393,13 +395,13 @@ class MockGraphQLClient(
      * Executes a GraphQL query/mutation using mock processing.
      * Coroutine delay simulates network latency.
      */
-    suspend fun executeGraphQL(request: GraphQLRequest): GraphQLResponse<Any> {
+    suspend fun executeGraphQL(request: GraphQLRequest): GraphQLResponse<Any> = withContext(Dispatchers.IO) {
         // Enforce safe network delay
         delay(350)
 
         val normQuery = request.query.trim().replace("\\s+".toRegex(), " ")
 
-        return when {
+        when {
             // --- MUTATION PROTOCOLS ---
             normQuery.contains("mutation FundWallet") -> {
                 val amount = (request.variables["amount"] as? Number)?.toDouble() ?: 0.0
@@ -414,7 +416,9 @@ class MockGraphQLClient(
                 val author = (request.variables["author"] as? String) ?: "AnonymousViber"
                 val content = (request.variables["content"] as? String) ?: "Empty Vibe"
                 val attachedPhoto = request.variables["attachedPhoto"] as? String
-                handlePostVibeMutation(author, content, attachedPhoto)
+                val authorType = request.variables["authorType"] as? String
+                val businessId = request.variables["businessId"] as? String
+                handlePostVibeMutation(author, content, attachedPhoto, authorType, businessId)
             }
             normQuery.contains("mutation ReactionVibe") -> {
                 val postId = (request.variables["id"] as? String) ?: ""
@@ -569,7 +573,7 @@ class MockGraphQLClient(
     private suspend fun handlePayMutation(amount: Double, note: String): GraphQLResponse<Any> {
         return try {
             database.withTransaction {
-                val txs = database.walletTransactionDao().getAllTransactions().first()
+                val txs = database.walletTransactionDao().getAllTransactionsDirect()
                 val currentBalance = calculateBalanceFromEntities(txs)
                 if (currentBalance < amount) {
                     val errMsg = "Insufficient Wallet Balance! Current: ₦${String.format(java.util.Locale.US, "%,.2f", currentBalance)}. Charge attempt: ₦${String.format(java.util.Locale.US, "%,.2f", amount)}. Please fund your wallet."
@@ -600,7 +604,13 @@ class MockGraphQLClient(
         }
     }
 
-    private suspend fun handlePostVibeMutation(author: String, content: String, attachedPhoto: String?): GraphQLResponse<Any> {
+    private suspend fun handlePostVibeMutation(
+        author: String,
+        content: String,
+        attachedPhoto: String?,
+        authorType: String?,
+        businessId: String?
+    ): GraphQLResponse<Any> {
         val id = UUID.randomUUID().toString()
         val vibeEntity = VibePostEntity(
             id = id,
@@ -610,14 +620,16 @@ class MockGraphQLClient(
             isVibeChecked = false,
             timestamp = System.currentTimeMillis(),
             commentsJson = "[]",
-            attachedPhoto = attachedPhoto
+            attachedPhoto = attachedPhoto,
+            authorType = authorType ?: "USER",
+            businessId = businessId
         )
         database.vibePostDao().insertVibePost(vibeEntity)
         return successResponse(vibeEntity)
     }
 
     private suspend fun handleVibeCheckingReaction(postId: String): GraphQLResponse<Any> {
-        val currentPosts = database.vibePostDao().getAllVibePosts().first()
+        val currentPosts = database.vibePostDao().getAllVibePostsDirect()
         val match = currentPosts.find { it.id == postId }
             ?: return errorResponse("Vibe target ID '$postId' does not exist.")
 
@@ -680,7 +692,7 @@ class MockGraphQLClient(
 
     private suspend fun handleGetEscrowBookingsQuery(): GraphQLResponse<Any> {
         return try {
-            val entities = database.savedBookingDao().getSavedBookings().first()
+            val entities = database.savedBookingDao().getSavedBookingsDirect()
             val escrowBookings = entities.filter { it.bookingType == "FREELANCE_SERVICE" }.mapNotNull { ent ->
                 val parts = ent.extraDetails.split("##")
                 if (parts.size == 3) {
@@ -718,7 +730,7 @@ class MockGraphQLClient(
         return try {
             database.withTransaction {
                 // Check if user has enough balance in wallet!
-                val txs = database.walletTransactionDao().getAllTransactions().first()
+                val txs = database.walletTransactionDao().getAllTransactionsDirect()
                 val currentBalance = calculateBalanceFromEntities(txs)
                 if (currentBalance < amount) {
                     // Fail the GraphQL execution cleanly by throwing IllegalStateException so view state catches the message
@@ -785,7 +797,7 @@ class MockGraphQLClient(
     private suspend fun handleApproveMilestoneMutation(bookingId: String, milestoneId: String): GraphQLResponse<Any> {
         return try {
             database.withTransaction {
-                val optBooking = database.savedBookingDao().getSavedBookings().first().find { it.id == bookingId && it.bookingType == "FREELANCE_SERVICE" }
+                val optBooking = database.savedBookingDao().getSavedBookingsDirect().find { it.id == bookingId && it.bookingType == "FREELANCE_SERVICE" }
                     ?: throw IllegalArgumentException("Escrow Project Booking '$bookingId' not found.")
 
                 val parts = optBooking.extraDetails.split("##")
@@ -839,7 +851,7 @@ class MockGraphQLClient(
     private suspend fun handleSubmitMilestoneForReviewMutation(bookingId: String, milestoneId: String): GraphQLResponse<Any> {
         return try {
             database.withTransaction {
-                val optBooking = database.savedBookingDao().getSavedBookings().first().find { it.id == bookingId && it.bookingType == "FREELANCE_SERVICE" }
+                val optBooking = database.savedBookingDao().getSavedBookingsDirect().find { it.id == bookingId && it.bookingType == "FREELANCE_SERVICE" }
                     ?: throw IllegalArgumentException("Escrow Project Booking '$bookingId' not found.")
 
                 val parts = optBooking.extraDetails.split("##")

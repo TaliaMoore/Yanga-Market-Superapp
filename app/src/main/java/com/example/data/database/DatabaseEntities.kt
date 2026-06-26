@@ -20,7 +20,9 @@ data class VibePostEntity(
     val isVibeChecked: Boolean,
     val timestamp: Long,
     val commentsJson: String, // Comments list serialized to JSON string
-    val attachedPhoto: String? = null
+    val attachedPhoto: String? = null,
+    val authorType: String? = "USER",
+    val businessId: String? = null
 )
 
 @Entity(

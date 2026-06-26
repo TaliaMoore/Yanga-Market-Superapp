@@ -32,7 +32,7 @@ class ExampleRobolectricTest {
     viewModel.setLoginDetails("eniolaagbeyindo@gmail.com", "Google")
     assertEquals("eniolaagbeyindo@gmail.com", viewModel.userPhoneOrEmail.value)
     assertEquals("Google", viewModel.loginMethod.value)
-    assertEquals("Eniola", viewModel.userName.value) // defaults to capitalized local part before @
+    assertEquals("Eniolaagbeyindo", viewModel.userName.value) // defaults to capitalized local part before @
     
     // Complete profile details and pinpoint coordinates
     viewModel.completeProfileAndLogIn(

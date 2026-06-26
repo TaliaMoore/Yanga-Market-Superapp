@@ -8,6 +8,9 @@ interface VibePostDao {
     @Query("SELECT * FROM vibe_posts ORDER BY timestamp DESC")
     fun getAllVibePosts(): Flow<List<VibePostEntity>>
 
+    @Query("SELECT * FROM vibe_posts ORDER BY timestamp DESC")
+    suspend fun getAllVibePostsDirect(): List<VibePostEntity>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertVibePost(vibePost: VibePostEntity)
 
@@ -19,6 +22,9 @@ interface VibePostDao {
 interface WalletTransactionDao {
     @Query("SELECT * FROM wallet_transactions ORDER BY timestamp DESC")
     fun getAllTransactions(): Flow<List<WalletTransactionEntity>>
+
+    @Query("SELECT * FROM wallet_transactions ORDER BY timestamp DESC")
+    suspend fun getAllTransactionsDirect(): List<WalletTransactionEntity>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertTransaction(transaction: WalletTransactionEntity)
@@ -43,6 +49,9 @@ interface CartItemDao {
 interface SavedBookingDao {
     @Query("SELECT * FROM saved_bookings")
     fun getSavedBookings(): Flow<List<SavedBookingEntity>>
+
+    @Query("SELECT * FROM saved_bookings")
+    suspend fun getSavedBookingsDirect(): List<SavedBookingEntity>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertBooking(booking: SavedBookingEntity)

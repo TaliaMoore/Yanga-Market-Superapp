@@ -58,6 +58,14 @@ fun VibesScreen(
     val selectedPhoto by viewModel.vibeAttachedPhotoInput.collectAsState()
     val groups by viewModel.discussionGroups.collectAsState()
 
+    val myBusinessStatus by viewModel.myBusinessAppStatus.collectAsState()
+    val myBusinessName by viewModel.myBusinessName.collectAsState()
+    val vibePostAsBusiness by viewModel.vibePostAsBusiness.collectAsState()
+
+    var activeProfileTypeForPopup by remember { mutableStateOf<String?>(null) }
+    var activeProfileIdForPopup by remember { mutableStateOf<String?>(null) }
+    var activeProfileNameForPopup by remember { mutableStateOf<String?>(null) }
+
     var showCreateGroupDialog by remember { mutableStateOf(false) }
     var selectedTagCircle by remember { mutableStateOf<String?>(null) }
 
@@ -270,7 +278,7 @@ fun VibesScreen(
                             color = CharcoalBlack
                         )
                         Text(
-                            text = "@$globalUserName",
+                            text = if (myBusinessStatus == "Approved" && myBusinessName.isNotBlank() && vibePostAsBusiness) "@$myBusinessName" else "@$globalUserName",
                             fontSize = 13.sp,
                             fontWeight = FontWeight.Black,
                             color = PrimaryPurple
@@ -284,6 +292,43 @@ fun VibesScreen(
                         )
                     }
                     Spacer(modifier = Modifier.height(8.dp))
+
+                    if (myBusinessStatus == "Approved" && myBusinessName.isNotBlank()) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(PrimaryPurple.copy(alpha = 0.08f))
+                                .border(1.dp, PrimaryPurple.copy(alpha = 0.2f), RoundedCornerShape(10.dp))
+                                .padding(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "Post using Business Name?",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Black,
+                                    color = PrimaryPurple
+                                )
+                                Text(
+                                    text = "Toggle to write under your business brand",
+                                    fontSize = 9.sp,
+                                    color = CharcoalBlack.copy(alpha = 0.6f)
+                                )
+                            }
+                            Switch(
+                                checked = vibePostAsBusiness,
+                                onCheckedChange = { viewModel.setVibePostAsBusiness(it) },
+                                colors = SwitchDefaults.colors(
+                                    checkedThumbColor = Color.White,
+                                    checkedTrackColor = PrimaryPurple,
+                                    uncheckedThumbColor = Color.Gray,
+                                    uncheckedTrackColor = Color.LightGray
+                                )
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(8.dp))
+                    }
                 } else {
                     // Tell them to set handle or type a temporary one
                     Column(
@@ -637,7 +682,38 @@ fun VibesScreen(
                     repliesCount = repliesCount,
                     onReaction = { viewModel.voteVibePost(post.id) },
                     onClick = { onNavigateToDetails(post.id) },
-                    onBoost = { viewModel.boostVibeLikes(post.id) }
+                    onBoost = { viewModel.boostVibeLikes(post.id) },
+                    onProfileClick = {
+                        val type = post.authorType
+                        if (type != null && type != "USER" && type.isNotBlank()) {
+                            activeProfileTypeForPopup = type
+                            activeProfileIdForPopup = post.businessId
+                            activeProfileNameForPopup = post.author
+                        } else if (post.businessId != null) {
+                            val isFreelancer = viewModel.graphQLClient.freelancerCatalog.any { it.id == post.businessId }
+                            if (isFreelancer) {
+                                activeProfileTypeForPopup = "FREELANCER"
+                            } else {
+                                val hosp = viewModel.graphQLClient.directoryService.getAllHospitals().find { it.id == post.businessId }
+                                if (hosp != null) {
+                                    if (hosp.name.lowercase().contains("pharmacy")) {
+                                        activeProfileTypeForPopup = "PHARMACY"
+                                    } else {
+                                        activeProfileTypeForPopup = "HOSPITAL"
+                                    }
+                                } else {
+                                    val isRest = viewModel.graphQLClient.restaurantCatalog.any { it.id == post.businessId }
+                                    if (isRest) {
+                                        activeProfileTypeForPopup = "RESTAURANT"
+                                    } else {
+                                        activeProfileTypeForPopup = "RETAIL"
+                                    }
+                                }
+                            }
+                            activeProfileIdForPopup = post.businessId
+                            activeProfileNameForPopup = post.author
+                        }
+                    }
                 )
             }
         }
@@ -734,6 +810,332 @@ fun VibesScreen(
             }
         }
     }
+
+    if (activeProfileTypeForPopup != null) {
+        val type = activeProfileTypeForPopup!!
+        val profileId = activeProfileIdForPopup
+        val profileName = activeProfileNameForPopup ?: ""
+
+        Dialog(onDismissRequest = { 
+            activeProfileTypeForPopup = null
+            activeProfileIdForPopup = null
+            activeProfileNameForPopup = null
+        }) {
+            Card(
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.White),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .border(2.5.dp, PrimaryPurple, RoundedCornerShape(20.dp))
+                    .padding(2.dp)
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(20.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    when (type.uppercase()) {
+                        "FREELANCER" -> {
+                            val freeProfile = viewModel.graphQLClient.freelancerCatalog.find { 
+                                it.id == profileId || it.name.equals(profileName, ignoreCase = true) 
+                            }
+                            if (freeProfile != null) {
+                                Text(text = freeProfile.avatarEmoji, fontSize = 48.sp)
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text(text = freeProfile.name, fontSize = 18.sp, fontWeight = FontWeight.Black, color = PrimaryPurple, textAlign = TextAlign.Center)
+                                Text(text = freeProfile.title, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = CharcoalBlack.copy(alpha = 0.6f), textAlign = TextAlign.Center)
+                                
+                                Spacer(modifier = Modifier.height(10.dp))
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .background(Color(0xFFF3F4F6), RoundedCornerShape(10.dp))
+                                        .padding(10.dp)
+                                ) {
+                                    Text(
+                                        text = freeProfile.bio,
+                                        fontSize = 11.sp,
+                                        color = CharcoalBlack,
+                                        textAlign = TextAlign.Center,
+                                        lineHeight = 14.sp
+                                    )
+                                }
+                                Spacer(modifier = Modifier.height(10.dp))
+                                Text(text = "Skills:", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = PrimaryPurple, modifier = Modifier.align(Alignment.Start))
+                                Text(
+                                    text = freeProfile.skills.joinToString(", "),
+                                    fontSize = 10.sp,
+                                    color = CharcoalBlack,
+                                    modifier = Modifier.align(Alignment.Start)
+                                )
+                                Spacer(modifier = Modifier.height(12.dp))
+                                Text(
+                                    text = "Starting Price: ₦${freeProfile.basePrice}/project",
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Black,
+                                    color = Color(0xFF16A34A)
+                                )
+                                Spacer(modifier = Modifier.height(16.dp))
+                                YangaFunButton(
+                                    text = "Go to Services Catalog 💼",
+                                    onClick = {
+                                        activeProfileTypeForPopup = null
+                                        viewModel.postSuccess("Navigating to Services Marketplace to view ${freeProfile.name}! 🚀")
+                                    },
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+                            } else {
+                                Text("Freelancer details under review or not found.", fontSize = 12.sp, textAlign = TextAlign.Center)
+                            }
+                        }
+                        "HOSPITAL" -> {
+                            val hosp = viewModel.graphQLClient.directoryService.getAllHospitals().find {
+                                it.id == profileId || it.name.equals(profileName, ignoreCase = true)
+                            }
+                            if (hosp != null) {
+                                Text(text = "🏥", fontSize = 48.sp)
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text(text = hosp.name, fontSize = 18.sp, fontWeight = FontWeight.Black, color = PrimaryPurple, textAlign = TextAlign.Center)
+                                Text(text = "Verified Medical Partner", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color(0xFF16A34A))
+                                
+                                Spacer(modifier = Modifier.height(10.dp))
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text("Location:", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = PrimaryPurple)
+                                    Text(hosp.location, fontSize = 10.sp, color = CharcoalBlack, textAlign = TextAlign.End, modifier = Modifier.weight(1f).padding(start = 10.dp))
+                                }
+                                Spacer(modifier = Modifier.height(6.dp))
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text("Open Hours:", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = PrimaryPurple)
+                                    Text("24 Hours (7 Days)", fontSize = 10.sp, color = CharcoalBlack)
+                                }
+                                Spacer(modifier = Modifier.height(10.dp))
+                                Text(text = "Specialties:", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = PrimaryPurple, modifier = Modifier.align(Alignment.Start))
+                                Text(
+                                    text = hosp.specialties.joinToString(", "),
+                                    fontSize = 10.sp,
+                                    color = CharcoalBlack,
+                                    modifier = Modifier.align(Alignment.Start)
+                                )
+                                Spacer(modifier = Modifier.height(16.dp))
+                                YangaFunButton(
+                                    text = "Book Consultation 🏥",
+                                    onClick = {
+                                        activeProfileTypeForPopup = null
+                                        viewModel.postSuccess("Initiating booking with ${hosp.name}! 🩺")
+                                    },
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+                            } else {
+                                Text("Hospital details under review or not found.", fontSize = 12.sp, textAlign = TextAlign.Center)
+                            }
+                        }
+                        "PHARMACY" -> {
+                            val pharm = viewModel.graphQLClient.directoryService.getAllHospitals().find {
+                                it.id == profileId || it.name.equals(profileName, ignoreCase = true)
+                            }
+                            if (pharm != null) {
+                                Text(text = "💊", fontSize = 48.sp)
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text(text = pharm.name, fontSize = 18.sp, fontWeight = FontWeight.Black, color = PrimaryPurple, textAlign = TextAlign.Center)
+                                Text(text = "Licensed Pharmacy Provider", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color(0xFFDC2626))
+                                
+                                Spacer(modifier = Modifier.height(10.dp))
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text("Location:", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = PrimaryPurple)
+                                    Text(pharm.location, fontSize = 10.sp, color = CharcoalBlack, textAlign = TextAlign.End, modifier = Modifier.weight(1f).padding(start = 10.dp))
+                                }
+                                Spacer(modifier = Modifier.height(10.dp))
+                                Text(text = "Offered Services / Medicines:", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = PrimaryPurple, modifier = Modifier.align(Alignment.Start))
+                                Text(
+                                    text = pharm.specialties.joinToString(", "),
+                                    fontSize = 10.sp,
+                                    color = CharcoalBlack,
+                                    modifier = Modifier.align(Alignment.Start)
+                                )
+                                Spacer(modifier = Modifier.height(16.dp))
+                                YangaFunButton(
+                                    text = "Order Prescription 💊",
+                                    onClick = {
+                                        activeProfileTypeForPopup = null
+                                        viewModel.postSuccess("Connecting to ${pharm.name} dispenser... 🚀")
+                                    },
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+                            } else {
+                                val shop = viewModel.graphQLClient.retailShopsCatalog.find {
+                                    it.id == profileId || it.nameAndAddress.getName().equals(profileName, ignoreCase = true)
+                                }
+                                if (shop != null) {
+                                    Text(text = "💊", fontSize = 48.sp)
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    Text(text = shop.nameAndAddress.getName(), fontSize = 18.sp, fontWeight = FontWeight.Black, color = PrimaryPurple, textAlign = TextAlign.Center)
+                                    Text(text = "Licensed Pharmacy Provider", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color(0xFFDC2626))
+                                    
+                                    Spacer(modifier = Modifier.height(10.dp))
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        Text("Location:", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = PrimaryPurple)
+                                        Text(shop.nameAndAddress.getAddress(), fontSize = 10.sp, color = CharcoalBlack, textAlign = TextAlign.End, modifier = Modifier.weight(1f).padding(start = 10.dp))
+                                    }
+                                    Spacer(modifier = Modifier.height(10.dp))
+                                    Text(text = "Featured Products:", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = PrimaryPurple, modifier = Modifier.align(Alignment.Start))
+                                    Text(
+                                        text = shop.items.joinToString(", ") { it.name },
+                                        fontSize = 10.sp,
+                                        color = CharcoalBlack,
+                                        modifier = Modifier.align(Alignment.Start)
+                                    )
+                                    Spacer(modifier = Modifier.height(16.dp))
+                                    YangaFunButton(
+                                        text = "Shop Medicines 💊",
+                                        onClick = {
+                                            activeProfileTypeForPopup = null
+                                            viewModel.postSuccess("Navigating to ${shop.nameAndAddress.getName()} store! 🚀")
+                                        },
+                                        modifier = Modifier.fillMaxWidth()
+                                    )
+                                } else {
+                                    Text("Pharmacy details under review or not found.", fontSize = 12.sp, textAlign = TextAlign.Center)
+                                }
+                            }
+                        }
+                        "RESTAURANT", "BAKERY", "CONFECTIONERY" -> {
+                            val rest = viewModel.graphQLClient.restaurantCatalog.find {
+                                it.id == profileId || it.name.equals(profileName, ignoreCase = true)
+                            }
+                            if (rest != null) {
+                                Text(text = if (type.uppercase() == "BAKERY") "🥐" else "🍔", fontSize = 48.sp)
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text(text = rest.name, fontSize = 18.sp, fontWeight = FontWeight.Black, color = PrimaryPurple, textAlign = TextAlign.Center)
+                                Text(text = "${rest.cuisine} Food Partner • Rating: ⭐ ${rest.rating}", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color(0xFFC2410C))
+                                
+                                Spacer(modifier = Modifier.height(10.dp))
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text("Address:", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = PrimaryPurple)
+                                    Text(rest.address, fontSize = 10.sp, color = CharcoalBlack, textAlign = TextAlign.End, modifier = Modifier.weight(1f).padding(start = 10.dp))
+                                }
+                                Spacer(modifier = Modifier.height(10.dp))
+                                Text(text = "Signature Menu courses:", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = PrimaryPurple, modifier = Modifier.align(Alignment.Start))
+                                Text(
+                                    text = rest.meals.joinToString(", ") { it.name },
+                                    fontSize = 10.sp,
+                                    color = CharcoalBlack,
+                                    modifier = Modifier.align(Alignment.Start)
+                                )
+                                Spacer(modifier = Modifier.height(16.dp))
+                                YangaFunButton(
+                                    text = "Order Food 🍔",
+                                    onClick = {
+                                        activeProfileTypeForPopup = null
+                                        viewModel.postSuccess("Opening ${rest.name} online delivery menu... 🤤")
+                                    },
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+                            } else {
+                                Text("Food business details under review or not found.", fontSize = 12.sp, textAlign = TextAlign.Center)
+                            }
+                        }
+                        "RETAIL" -> {
+                            val shop = viewModel.graphQLClient.retailShopsCatalog.find {
+                                it.id == profileId || it.nameAndAddress.getName().equals(profileName, ignoreCase = true)
+                            }
+                            if (shop != null) {
+                                Text(text = "🛒", fontSize = 48.sp)
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text(text = shop.nameAndAddress.getName(), fontSize = 18.sp, fontWeight = FontWeight.Black, color = PrimaryPurple, textAlign = TextAlign.Center)
+                                Text(text = "General Retail Store Partner", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color(0xFF047857))
+                                
+                                Spacer(modifier = Modifier.height(10.dp))
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text("Location:", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = PrimaryPurple)
+                                    Text(shop.nameAndAddress.getAddress(), fontSize = 10.sp, color = CharcoalBlack, textAlign = TextAlign.End, modifier = Modifier.weight(1f).padding(start = 10.dp))
+                                }
+                                Spacer(modifier = Modifier.height(10.dp))
+                                Text(text = "Featured Inventory:", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = PrimaryPurple, modifier = Modifier.align(Alignment.Start))
+                                Text(
+                                    text = shop.items.joinToString(", ") { it.name },
+                                    fontSize = 10.sp,
+                                    color = CharcoalBlack,
+                                    modifier = Modifier.align(Alignment.Start)
+                                )
+                                Spacer(modifier = Modifier.height(16.dp))
+                                YangaFunButton(
+                                    text = "Browse Shop items 🛒",
+                                    onClick = {
+                                        activeProfileTypeForPopup = null
+                                        viewModel.postSuccess("Entering ${shop.nameAndAddress.getName()} catalog! 🛍️")
+                                    },
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+                            } else {
+                                Text("Retail shop details under review or not found.", fontSize = 12.sp, textAlign = TextAlign.Center)
+                            }
+                        }
+                        else -> {
+                            Text("Profile details not available.", fontSize = 12.sp, textAlign = TextAlign.Center)
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+                    TextButton(onClick = { 
+                        activeProfileTypeForPopup = null
+                        activeProfileIdForPopup = null
+                        activeProfileNameForPopup = null
+                    }) {
+                        Text("Close Card", color = HeartRed, fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun AuthorTagBadge(authorType: String) {
+    val (label, containerColor, contentColor) = when (authorType.uppercase()) {
+        "FREELANCER" -> Triple("Freelancer 👦💼", Color(0xFFEFF6FF), Color(0xFF1D4ED8))
+        "HOSPITAL" -> Triple("Hospital 🏥", Color(0xFFFDF2F8), Color(0xFFBE185D))
+        "PHARMACY" -> Triple("Pharmacy 💊", Color(0xFFFEF2F2), Color(0xFFDC2626))
+        "RESTAURANT" -> Triple("Restaurant 🍔", Color(0xFFFFF7ED), Color(0xFFC2410C))
+        "BAKERY" -> Triple("Bakery 🥐", Color(0xFFFEF3C7), Color(0xFFB45309))
+        "CONFECTIONERY" -> Triple("Confectionery 🍬", Color(0xFFF5F3FF), Color(0xFF6D28D9))
+        "RETAIL" -> Triple("Retail 🛒", Color(0xFFECFDF5), Color(0xFF047857))
+        "CARE CENTER", "CARE_CENTER" -> Triple("Care Center 🏥", Color(0xFFF0FDF4), Color(0xFF15803D))
+        else -> Triple(authorType.lowercase().capitalize(), Color(0xFFF3F4F6), Color(0xFF374151))
+    }
+
+    Box(
+        modifier = Modifier
+            .padding(start = 6.dp)
+            .clip(RoundedCornerShape(6.dp))
+            .background(containerColor)
+            .padding(horizontal = 6.dp, vertical = 2.dp)
+    ) {
+        Text(
+            text = label,
+            fontSize = 9.sp,
+            fontWeight = FontWeight.Black,
+            color = contentColor
+        )
+    }
 }
 
 @Composable
@@ -742,7 +1144,8 @@ fun VibePostRow(
     repliesCount: Int,
     onReaction: () -> Unit,
     onClick: () -> Unit,
-    onBoost: (() -> Unit)? = null
+    onBoost: (() -> Unit)? = null,
+    onProfileClick: () -> Unit
 ) {
     val df = SimpleDateFormat("HH:mm", Locale.getDefault())
     val timeLabel = df.format(Date(post.timestamp))
@@ -762,7 +1165,10 @@ fun VibePostRow(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.clickable { onProfileClick() }
+                ) {
                     // Circular Pseudo-Avatar representation
                     Box(
                         modifier = Modifier
@@ -781,14 +1187,21 @@ fun VibePostRow(
                     }
                     Spacer(modifier = Modifier.width(10.dp))
                     Column {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = "@${post.author}",
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = CharcoalBlack
+                            )
+                            post.authorType?.let { type ->
+                                if (type != "USER" && type.isNotBlank()) {
+                                    AuthorTagBadge(authorType = type)
+                                }
+                            }
+                        }
                         Text(
-                            text = "@${post.author}",
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.ExtraBold,
-                            color = CharcoalBlack
-                        )
-                        Text(
-                            text = "Super-Citizen • Shared at $timeLabel",
+                            text = if (post.authorType != null && post.authorType != "USER" && post.authorType!!.isNotBlank()) "${post.authorType} Partner • Shared at $timeLabel" else "Super-Citizen • Shared at $timeLabel",
                             fontSize = 10.sp,
                             color = CharcoalBlack.copy(alpha = 0.5f),
                             fontWeight = FontWeight.Bold

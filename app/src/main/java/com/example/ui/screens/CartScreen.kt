@@ -51,6 +51,17 @@ fun CartScreen(
 
     var selectedPaymentMethod by remember { mutableStateOf("WALLET") } // WALLET, BANK_TRANSFER, COD
 
+    val checkoutPinState by viewModel.checkoutPin.collectAsState()
+
+    var showPinPromptDialog by remember { mutableStateOf(false) }
+    var enteredPin by remember { mutableStateOf("") }
+    var pinError by remember { mutableStateOf(false) }
+
+    var showPinSetupDialog by remember { mutableStateOf(false) }
+    var newPinInput by remember { mutableStateOf("") }
+    var confirmNewPinInput by remember { mutableStateOf("") }
+    var setupPinErrorMsg by remember { mutableStateOf("") }
+
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -390,8 +401,18 @@ fun CartScreen(
                     Spacer(modifier = Modifier.height(16.dp))
                     Button(
                         onClick = {
-                            viewModel.checkoutCart(paymentMethod = selectedPaymentMethod)
-                            onNavigateBack()
+                            if (checkoutPinState.isEmpty()) {
+                                // Pin not configured yet, force pin setup first!
+                                newPinInput = ""
+                                confirmNewPinInput = ""
+                                setupPinErrorMsg = ""
+                                showPinSetupDialog = true
+                            } else {
+                                // Pin is configured, prompt for it!
+                                enteredPin = ""
+                                pinError = false
+                                showPinPromptDialog = true
+                            }
                         },
                         colors = ButtonDefaults.buttonColors(containerColor = PrimaryPurple),
                         shape = RoundedCornerShape(12.dp),
@@ -423,6 +444,157 @@ fun CartScreen(
                 }
             }
         }
+    }
+
+    // --- Pin Setup Dialog ---
+    if (showPinSetupDialog) {
+        AlertDialog(
+            onDismissRequest = { showPinSetupDialog = false },
+            confirmButton = {},
+            dismissButton = {},
+            title = { Text("Configure Checkout PIN 🔐", fontWeight = FontWeight.Bold, color = PrimaryPurple) },
+            text = {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Text("A 4-digit security PIN is required to complete and approve transactions on Yanga Market. Configure yours below:", fontSize = 11.sp, color = CharcoalBlack)
+
+                    OutlinedTextField(
+                        value = newPinInput,
+                        onValueChange = { 
+                            if (it.length <= 4) newPinInput = it.filter { c -> c.isDigit() }
+                            setupPinErrorMsg = ""
+                        },
+                        label = { Text("Enter 4-Digit PIN") },
+                        placeholder = { Text("e.g. 1234") },
+                        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Number),
+                        shape = RoundedCornerShape(10.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    OutlinedTextField(
+                        value = confirmNewPinInput,
+                        onValueChange = { 
+                            if (it.length <= 4) confirmNewPinInput = it.filter { c -> c.isDigit() }
+                            setupPinErrorMsg = ""
+                        },
+                        label = { Text("Confirm 4-Digit PIN") },
+                        placeholder = { Text("e.g. 1234") },
+                        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Number),
+                        shape = RoundedCornerShape(10.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    if (setupPinErrorMsg.isNotEmpty()) {
+                        Text(setupPinErrorMsg, fontSize = 10.sp, color = Color.Red, fontWeight = FontWeight.Bold)
+                    }
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Button(
+                            onClick = { showPinSetupDialog = false },
+                            colors = ButtonDefaults.buttonColors(containerColor = CharcoalBlack.copy(alpha = 0.1f), contentColor = CharcoalBlack),
+                            shape = RoundedCornerShape(10.dp),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Text("Cancel", fontWeight = FontWeight.Bold)
+                        }
+
+                        Button(
+                            onClick = {
+                                if (newPinInput.length != 4) {
+                                    setupPinErrorMsg = "PIN must be exactly 4 digits long!"
+                                } else if (newPinInput != confirmNewPinInput) {
+                                    setupPinErrorMsg = "PINs do not match!"
+                                } else {
+                                    viewModel.setCheckoutPin(newPinInput)
+                                    showPinSetupDialog = false
+                                    // Successfully configured! Immediately trigger verification check to approve
+                                    enteredPin = ""
+                                    pinError = false
+                                    showPinPromptDialog = true
+                                }
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = PrimaryPurple),
+                            shape = RoundedCornerShape(10.dp),
+                            modifier = Modifier.weight(1.5f)
+                        ) {
+                            Text("Save & Continue", fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+            }
+        )
+    }
+
+    // --- Pin Verification Dialog ---
+    if (showPinPromptDialog) {
+        AlertDialog(
+            onDismissRequest = { showPinPromptDialog = false },
+            confirmButton = {},
+            dismissButton = {},
+            title = { Text("Enter Security PIN 🔐", fontWeight = FontWeight.Bold, color = PrimaryPurple) },
+            text = {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Text("Enter your 4-digit transaction approval PIN to finalize your purchase:", fontSize = 11.sp, color = CharcoalBlack)
+
+                    OutlinedTextField(
+                        value = enteredPin,
+                        onValueChange = { 
+                            if (it.length <= 4) enteredPin = it.filter { c -> c.isDigit() }
+                            pinError = false
+                        },
+                        label = { Text("Approval PIN") },
+                        placeholder = { Text("Enter 4 digits") },
+                        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Number),
+                        shape = RoundedCornerShape(10.dp),
+                        isError = pinError,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    if (pinError) {
+                        Text("⚠️ Incorrect security PIN! Please try again.", fontSize = 11.sp, color = Color.Red, fontWeight = FontWeight.Bold)
+                    }
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Button(
+                            onClick = { showPinPromptDialog = false },
+                            colors = ButtonDefaults.buttonColors(containerColor = CharcoalBlack.copy(alpha = 0.1f), contentColor = CharcoalBlack),
+                            shape = RoundedCornerShape(10.dp),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Text("Cancel", fontWeight = FontWeight.Bold)
+                        }
+
+                        Button(
+                            onClick = {
+                                if (enteredPin == checkoutPinState) {
+                                    showPinPromptDialog = false
+                                    viewModel.checkoutCart(paymentMethod = selectedPaymentMethod)
+                                    onNavigateBack()
+                                } else {
+                                    pinError = true
+                                }
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = PrimaryPurple),
+                            shape = RoundedCornerShape(10.dp),
+                            modifier = Modifier.weight(1.5f)
+                        ) {
+                            Text("Approve Payment", fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+            }
+        )
     }
 }
 
